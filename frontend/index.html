@@ -27,10 +27,12 @@
 
         header h1 {
             margin: 0;
+            font-size: 32px;
         }
 
         header p {
             color: #cbd5e1;
+            margin-bottom: 0;
         }
 
         .container {
@@ -59,29 +61,6 @@
             display: block;
             font-weight: bold;
             margin-bottom: 7px;
-        }
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 25px;
-        }
-
-        .card,
-        .box {
-            background: white;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .card h3 {
-            color: #6b7280;
-        }
-
-        .card h2 {
-            font-size: 28px;
         }
 
         button {
@@ -117,9 +96,40 @@
             color: red;
         }
 
+        .cards {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .card,
+        .box {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow:
+                0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            color: #6b7280;
+            margin-top: 0;
+        }
+
+        .card h2 {
+            font-size: 28px;
+            margin-bottom: 0;
+        }
+
+        .box {
+            margin-top: 25px;
+        }
+
         .recommendation {
             font-size: 18px;
-            line-height: 1.8;
+            line-height: 1.9;
         }
 
         table {
@@ -137,6 +147,26 @@
         th {
             background: #f3f4f6;
         }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 20px;
+            background: #e5e7eb;
+            font-size: 13px;
+        }
+
+        .hero-note {
+            background: #eef2ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
     </style>
 </head>
 
@@ -151,10 +181,18 @@
 
     <h2>AI Usage Analyzer</h2>
 
+    <div class="hero-note">
+        Analyze your AI usage, compare model costs,
+        discover potential savings, and track usage history.
+    </div>
+
+    <!-- USER INPUTS -->
+
     <div class="inputs">
 
         <div>
             <label for="agentName">Agent Name</label>
+
             <input
                 id="agentName"
                 type="text"
@@ -165,6 +203,7 @@
 
         <div>
             <label for="model">AI Model</label>
+
             <select id="model">
                 <option value="GPT">GPT</option>
                 <option value="Gemini">Gemini</option>
@@ -175,6 +214,7 @@
 
         <div>
             <label for="apiCalls">API Calls</label>
+
             <input
                 id="apiCalls"
                 type="number"
@@ -185,6 +225,7 @@
 
         <div>
             <label for="tokens">Tokens</label>
+
             <input
                 id="tokens"
                 type="number"
@@ -207,7 +248,27 @@
         class="status"
     ></div>
 
+
+    <!-- LIVE SUMMARY -->
+
+    <h2>Live Dashboard</h2>
+
     <div class="cards">
+
+        <div class="card">
+            <h3>Total Records</h3>
+            <h2 id="totalRecords">0</h2>
+        </div>
+
+        <div class="card">
+            <h3>Total API Calls</h3>
+            <h2 id="totalApiCalls">0</h2>
+        </div>
+
+        <div class="card">
+            <h3>Total Tokens</h3>
+            <h2 id="totalTokens">0</h2>
+        </div>
 
         <div class="card">
             <h3>Total AI Cost</h3>
@@ -215,21 +276,14 @@
         </div>
 
         <div class="card">
-            <h3>Estimated Saving</h3>
-            <h2 id="saving">₹0</h2>
-        </div>
-
-        <div class="card">
-            <h3>API Calls</h3>
-            <h2 id="apiCallsDisplay">0</h2>
-        </div>
-
-        <div class="card">
-            <h3>Tokens</h3>
-            <h2 id="tokensDisplay">0</h2>
+            <h3>Total Savings</h3>
+            <h2 id="totalSaving">₹0</h2>
         </div>
 
     </div>
+
+
+    <!-- CURRENT ANALYSIS -->
 
     <div class="box">
 
@@ -261,6 +315,9 @@
 
     </div>
 
+
+    <!-- CHART -->
+
     <div class="box">
 
         <h2>Cost Overview</h2>
@@ -269,35 +326,49 @@
 
     </div>
 
+
+    <!-- HISTORY -->
+
     <div class="box">
 
         <h2>Usage History</h2>
 
-        <table>
+        <div class="table-wrapper">
 
-            <thead>
-                <tr>
-                    <th>Agent</th>
-                    <th>Model</th>
-                    <th>API Calls</th>
-                    <th>Tokens</th>
-                    <th>Cost</th>
-                    <th>Saving</th>
-                </tr>
-            </thead>
+            <table>
 
-            <tbody id="historyBody"></tbody>
+                <thead>
 
-        </table>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Model</th>
+                        <th>API Calls</th>
+                        <th>Tokens</th>
+                        <th>Cost</th>
+                        <th>Saving</th>
+                    </tr>
+
+                </thead>
+
+                <tbody id="historyBody"></tbody>
+
+            </table>
+
+        </div>
 
     </div>
 
 </div>
 
+
 <script>
 
 const API_URL = "https://aihubx.onrender.com";
 
+
+/* =========================
+   CHART
+========================= */
 
 const chart = new Chart(
     document.getElementById("costChart"),
@@ -335,6 +406,10 @@ const chart = new Chart(
 );
 
 
+/* =========================
+   ANALYZE USAGE
+========================= */
+
 async function analyzeUsage() {
 
     const button =
@@ -344,16 +419,29 @@ async function analyzeUsage() {
         document.getElementById("status");
 
     const agentName =
-        document.getElementById("agentName").value.trim();
+        document
+            .getElementById("agentName")
+            .value
+            .trim();
 
     const model =
-        document.getElementById("model").value;
+        document
+            .getElementById("model")
+            .value;
 
     const apiCalls =
-        Number(document.getElementById("apiCalls").value);
+        Number(
+            document
+                .getElementById("apiCalls")
+                .value
+        );
 
     const tokens =
-        Number(document.getElementById("tokens").value);
+        Number(
+            document
+                .getElementById("tokens")
+                .value
+        );
 
 
     if (!agentName) {
@@ -442,29 +530,7 @@ async function analyzeUsage() {
         }
 
 
-        document.getElementById(
-            "totalCost"
-        ).innerText =
-            "₹" + data.total_cost;
-
-
-        document.getElementById(
-            "saving"
-        ).innerText =
-            "₹" + data.estimated_saving;
-
-
-        document.getElementById(
-            "apiCallsDisplay"
-        ).innerText =
-            data.api_calls;
-
-
-        document.getElementById(
-            "tokensDisplay"
-        ).innerText =
-            data.tokens;
-
+        /* CURRENT ANALYSIS */
 
         document.getElementById(
             "recommendedModel"
@@ -490,6 +556,8 @@ async function analyzeUsage() {
             data.estimated_saving;
 
 
+        /* CHART */
+
         chart.data.datasets[0].data = [
 
             data.total_cost,
@@ -510,8 +578,9 @@ async function analyzeUsage() {
 
         await loadHistory();
 
-    }
+        await loadSummary();
 
+    }
 
     catch (error) {
 
@@ -528,7 +597,6 @@ async function analyzeUsage() {
 
     }
 
-
     finally {
 
         button.disabled = false;
@@ -537,6 +605,80 @@ async function analyzeUsage() {
 
 }
 
+
+/* =========================
+   LOAD SUMMARY
+========================= */
+
+async function loadSummary() {
+
+    try {
+
+        const response =
+            await fetch(
+                API_URL +
+                "/usage/summary"
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Summary request failed"
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "totalRecords"
+        ).innerText =
+            data.total_records;
+
+
+        document.getElementById(
+            "totalApiCalls"
+        ).innerText =
+            data.total_api_calls;
+
+
+        document.getElementById(
+            "totalTokens"
+        ).innerText =
+            data.total_tokens;
+
+
+        document.getElementById(
+            "totalCost"
+        ).innerText =
+            "₹" + data.total_cost;
+
+
+        document.getElementById(
+            "totalSaving"
+        ).innerText =
+            "₹" + data.total_saving;
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Summary error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* =========================
+   LOAD HISTORY
+========================= */
 
 async function loadHistory() {
 
@@ -586,7 +728,9 @@ async function loadHistory() {
                     </td>
 
                     <td>
-                        ${item.model}
+                        <span class="badge">
+                            ${item.model}
+                        </span>
                     </td>
 
                     <td>
@@ -627,8 +771,17 @@ async function loadHistory() {
 }
 
 
-window.onload =
-    loadHistory;
+/* =========================
+   PAGE LOAD
+========================= */
+
+window.onload = async function() {
+
+    await loadSummary();
+
+    await loadHistory();
+
+};
 
 </script>
 
