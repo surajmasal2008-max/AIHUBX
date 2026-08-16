@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 import sqlite3
@@ -7,6 +8,7 @@ import sqlite3
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_FILE = BASE_DIR / "aihubx.db"
+FRONTEND_FILE = BASE_DIR / "frontend" / "index.html"
 
 
 app = FastAPI(
@@ -52,7 +54,6 @@ def create_table():
 create_table()
 
 
-# Demo pricing per 1000 tokens
 MODEL_PRICES = {
     "GPT": 0.005,
     "Gemini": 0.002,
@@ -70,6 +71,9 @@ class UsageData(BaseModel):
 
 @app.get("/")
 def home():
+    if FRONTEND_FILE.exists():
+        return FileResponse(FRONTEND_FILE)
+
     return {
         "message": "AIHUBX is running!",
         "status": "success"
