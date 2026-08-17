@@ -1,39 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 import sqlite3
 
 
-# --------------------------------------------------
-# PATHS
-# --------------------------------------------------
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 DB_FILE = BASE_DIR / "aihubx.db"
 
-FRONTEND_FILE = (
-    BASE_DIR /
-    "frontend" /
-    "index.html"
-)
-
-
-# --------------------------------------------------
-# APP
-# --------------------------------------------------
 
 app = FastAPI(
     title="AIHUBX AI Cost Optimizer",
-    version="2.1.0"
+    version="2.0.0"
 )
 
-
-# --------------------------------------------------
-# CORS
-# --------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,315 +24,260 @@ app.add_middleware(
 )
 
 
-# --------------------------------------------------
+# =========================
 # DATABASE
-# --------------------------------------------------
+# =========================
 
 def get_db():
-
-    db = sqlite3.connect(
-        DB_FILE
-    )
-
+    db = sqlite3.connect(DB_FILE)
     db.row_factory = sqlite3.Row
-
     return db
 
 
 def create_table():
-
     db = get_db()
 
-    db.execute(
-        """
+    db.execute("""
         CREATE TABLE IF NOT EXISTS usage_history (
-
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-
             agent_name TEXT NOT NULL,
-
             model TEXT NOT NULL,
-
             api_calls INTEGER NOT NULL,
-
             tokens INTEGER NOT NULL,
-
             cost REAL NOT NULL,
-
             saving REAL NOT NULL
-
         )
-        """
-    )
+    """)
 
     db.commit()
-
     db.close()
 
 
 create_table()
 
 
-# --------------------------------------------------
+# =========================
 # MODEL PRICING
-# --------------------------------------------------
+# Price = per 1000 tokens
+# =========================
 
 MODEL_PRICES = {
-
     "GPT": 0.005,
-
     "Gemini": 0.002,
-
     "Claude": 0.004,
-
     "Llama": 0.001
-
 }
 
 
-# --------------------------------------------------
-# REQUEST MODEL
-# --------------------------------------------------
+# =========================
+# MODELS
+# =========================
 
 class UsageData(BaseModel):
-
     agent_name: str
-
     model: str
-
     api_calls: int
-
     tokens: int
 
 
-# --------------------------------------------------
-# ROOT / DASHBOARD
-# --------------------------------------------------
+# =========================
+# HOME
+# =========================
 
 @app.get("/")
 def home():
-
-    if FRONTEND_FILE.exists():
-
-        return FileResponse(
-            FRONTEND_FILE
-        )
-
     return {
-
-        "message":
-            "AIHUBX is running!",
-
-        "status":
-            "success",
-
-        "version":
-            "2.1.0",
-
-        "error":
-            "frontend/index.html not found"
-
+        "message": "AIHUBX is running!",
+        "status": "success",
+        "version": "2.0.0"
     }
 
-
-# --------------------------------------------------
-# HEALTH
-# --------------------------------------------------
 
 @app.get("/health")
 def health():
-
     return {
-
-        "status":
-            "healthy",
-
-        "database_exists":
-            DB_FILE.exists(),
-
-        "frontend_exists":
-            FRONTEND_FILE.exists()
-
+        "status": "healthy"
     }
 
 
-# --------------------------------------------------
-# MODELS
-# --------------------------------------------------
+# =========================
+# COST CALCULATION
+# =========================
+
+def calculate_cost(model: str, tokens: int):
+    return (
+        tokens / 1000
+    ) * MODEL_PRICES[model]
+
+
+# =========================
+# MODEL COMPARISON
+# =========================
 
 @app.get("/models")
-def models():
+def model_comparison(tokens: int):
+
+    if tokens <= 0:
+        return {
+            "error": "Tokens must be greater than 0"
+        }
+
+    models = []
+
+    cheapest_model = min(
+        MODEL_PRICES,
+        key=MODEL_PRICES.get
+    )
+
+    cheapest_cost = calculate_cost(
+        cheapest_model,
+        tokens
+    )
+
+    for model, price in MODEL_PRICES.items():
+
+        cost = calculate_cost(
+            model,
+            tokens
+        )
+
+        saving = max(
+            cost - cheapest_cost,
+            0
+        )
+
+        models.append({
+            "model": model,
+            "price_per_1000_tokens": price,
+            "cost": round(cost, 6),
+            "saving_vs_cheapest": round(
+                saving,
+                6
+            ),
+            "recommended":
+                model == cheapest_model
+        })
 
     return {
-
-        "models":
-            MODEL_PRICES
-
+        "tokens": tokens,
+        "recommended_model": cheapest_model,
+        "models": models
     }
 
 
-# --------------------------------------------------
+# =========================
 # OPTIMIZE
-# --------------------------------------------------
+# =========================
 
 @app.get("/optimize")
-def optimize(
-    model: str,
-    tokens: int
-):
+def optimize(model: str, tokens: int):
 
     if model not in MODEL_PRICES:
 
         return {
-
-            "error":
-                "Unknown model",
-
+            "error": "Unknown model",
             "available_models":
-                list(
-                    MODEL_PRICES.keys()
-                )
-
+                list(MODEL_PRICES.keys())
         }
 
+    if tokens <= 0:
 
-    current_cost = (
+        return {
+            "error":
+                "Tokens must be greater than 0"
+        }
 
-        tokens *
-        MODEL_PRICES[model]
-
+    current_cost = calculate_cost(
+        model,
+        tokens
     )
-
 
     recommended_model = min(
-
         MODEL_PRICES,
-
         key=MODEL_PRICES.get
-
     )
 
-
-    recommended_cost = (
-
-        tokens *
-        MODEL_PRICES[
-            recommended_model
-        ]
-
+    recommended_cost = calculate_cost(
+        recommended_model,
+        tokens
     )
-
 
     saving = max(
-
-        current_cost -
-        recommended_cost,
-
+        current_cost - recommended_cost,
         0
-
     )
 
-
     return {
-
-        "current_model":
-            model,
-
+        "current_model": model,
         "recommended_model":
             recommended_model,
-
-        "tokens":
-            tokens,
-
+        "tokens": tokens,
         "current_cost":
-            round(
-                current_cost,
-                4
-            ),
-
+            round(current_cost, 6),
         "recommended_cost":
-            round(
-                recommended_cost,
-                4
-            ),
-
+            round(recommended_cost, 6),
         "potential_saving":
-            round(
-                saving,
-                4
-            )
-
+            round(saving, 6)
     }
 
 
-# --------------------------------------------------
+# =========================
 # ADD USAGE
-# --------------------------------------------------
+# =========================
 
 @app.post("/usage")
-def add_usage(
-    data: UsageData
-):
+def add_usage(data: UsageData):
 
     if data.model not in MODEL_PRICES:
 
         return {
-
-            "error":
-                "Unknown model",
-
+            "error": "Unknown model",
             "available_models":
-                list(
-                    MODEL_PRICES.keys()
-                )
+                list(MODEL_PRICES.keys())
+        }
 
+    if data.api_calls <= 0:
+
+        return {
+            "error":
+                "API calls must be greater than 0"
+        }
+
+    if data.tokens <= 0:
+
+        return {
+            "error":
+                "Tokens must be greater than 0"
         }
 
 
-    current_cost = (
-
-        data.tokens *
-        MODEL_PRICES[
-            data.model
-        ]
-
+    current_cost = calculate_cost(
+        data.model,
+        data.tokens
     )
 
 
     recommended_model = min(
-
         MODEL_PRICES,
-
         key=MODEL_PRICES.get
-
     )
 
 
-    recommended_cost = (
-
-        data.tokens *
-        MODEL_PRICES[
-            recommended_model
-        ]
-
+    recommended_cost = calculate_cost(
+        recommended_model,
+        data.tokens
     )
 
 
     saving = max(
-
-        current_cost -
-        recommended_cost,
-
+        current_cost - recommended_cost,
         0
-
     )
 
 
     db = get_db()
 
-
     db.execute(
-
         """
         INSERT INTO usage_history
         (
@@ -363,36 +288,23 @@ def add_usage(
             cost,
             saving
         )
-
         VALUES (?, ?, ?, ?, ?, ?)
         """,
-
         (
-
             data.agent_name,
-
             data.model,
-
             data.api_calls,
-
             data.tokens,
-
             current_cost,
-
             saving
-
         )
-
     )
 
-
     db.commit()
-
     db.close()
 
 
     return {
-
         "message":
             "Usage data analyzed",
 
@@ -406,108 +318,52 @@ def add_usage(
             data.tokens,
 
         "total_cost":
-            round(
-                current_cost,
-                4
-            ),
+            round(current_cost, 6),
 
         "recommended_model":
             recommended_model,
 
         "recommended_cost":
-            round(
-                recommended_cost,
-                4
-            ),
+            round(recommended_cost, 6),
 
         "estimated_saving":
-            round(
-                saving,
-                4
-            )
-
+            round(saving, 6)
     }
 
 
-# --------------------------------------------------
+# =========================
 # SUMMARY
-# --------------------------------------------------
+# =========================
 
 @app.get("/usage/summary")
 def usage_summary():
 
     db = get_db()
 
-
     row = db.execute(
-
         """
         SELECT
-
             COUNT(*) AS total_records,
-
             COALESCE(
-                SUM(api_calls),
-                0
+                SUM(api_calls), 0
             ) AS total_api_calls,
-
             COALESCE(
-                SUM(tokens),
-                0
+                SUM(tokens), 0
             ) AS total_tokens,
-
             COALESCE(
-                SUM(cost),
-                0
+                SUM(cost), 0
             ) AS total_cost,
-
             COALESCE(
-                SUM(saving),
-                0
+                SUM(saving), 0
             ) AS total_saving
-
         FROM usage_history
         """
-
     ).fetchone()
-
 
     db.close()
 
 
-    total_cost = float(
-        row["total_cost"] or 0
-    )
-
-
-    total_saving = float(
-        row["total_saving"] or 0
-    )
-
-
-    possible_cost = (
-
-        total_cost +
-        total_saving
-
-    )
-
-
-    savings_percentage = 0
-
-
-    if possible_cost > 0:
-
-        savings_percentage = (
-
-            total_saving /
-            possible_cost
-
-        ) * 100
-
-
     return {
-
         "total_records":
             row["total_records"],
 
@@ -519,219 +375,46 @@ def usage_summary():
 
         "total_cost":
             round(
-                total_cost,
-                4
+                row["total_cost"],
+                6
             ),
 
         "total_saving":
             round(
-                total_saving,
-                4
-            ),
-
-        "savings_percentage":
-            round(
-                savings_percentage,
-                2
+                row["total_saving"],
+                6
             )
-
     }
 
 
-# --------------------------------------------------
-# ANALYTICS
-# --------------------------------------------------
-
-@app.get("/analytics")
-def analytics():
-
-    db = get_db()
-
-
-    rows = db.execute(
-
-        """
-        SELECT
-
-            model,
-
-            COUNT(*) AS records,
-
-            SUM(api_calls)
-                AS api_calls,
-
-            SUM(tokens)
-                AS tokens,
-
-            SUM(cost)
-                AS cost,
-
-            SUM(saving)
-                AS saving
-
-        FROM usage_history
-
-        GROUP BY model
-
-        ORDER BY cost DESC
-        """
-
-    ).fetchall()
-
-
-    db.close()
-
-
-    model_analytics = []
-
-
-    for row in rows:
-
-        model_analytics.append({
-
-            "model":
-                row["model"],
-
-            "records":
-                row["records"],
-
-            "api_calls":
-                row["api_calls"] or 0,
-
-            "tokens":
-                row["tokens"] or 0,
-
-            "cost":
-                round(
-                    float(
-                        row["cost"] or 0
-                    ),
-                    4
-                ),
-
-            "saving":
-                round(
-                    float(
-                        row["saving"] or 0
-                    ),
-                    4
-                )
-
-        })
-
-
-    total_cost = sum(
-
-        item["cost"]
-
-        for item
-        in model_analytics
-
-    )
-
-
-    total_saving = sum(
-
-        item["saving"]
-
-        for item
-        in model_analytics
-
-    )
-
-
-    cheapest_model = min(
-
-        MODEL_PRICES,
-
-        key=MODEL_PRICES.get
-
-    )
-
-
-    most_used_model = None
-
-
-    if model_analytics:
-
-        most_used_model = max(
-
-            model_analytics,
-
-            key=lambda item:
-                item["tokens"]
-
-        )["model"]
-
-
-    return {
-
-        "models":
-            model_analytics,
-
-        "cheapest_model":
-            cheapest_model,
-
-        "most_used_model":
-            most_used_model,
-
-        "total_cost":
-            round(
-                total_cost,
-                4
-            ),
-
-        "total_saving":
-            round(
-                total_saving,
-                4
-            )
-
-    }
-
-
-# --------------------------------------------------
+# =========================
 # HISTORY
-# --------------------------------------------------
+# =========================
 
 @app.get("/usage/history")
 def usage_history():
 
     db = get_db()
 
-
     rows = db.execute(
-
         """
         SELECT
-
             id,
-
             agent_name,
-
             model,
-
             api_calls,
-
             tokens,
-
             cost,
-
             saving
-
         FROM usage_history
-
         ORDER BY id DESC
         """
-
     ).fetchall()
-
 
     db.close()
 
 
     history = []
-
 
     for row in rows:
 
@@ -755,42 +438,31 @@ def usage_history():
             "cost":
                 round(
                     row["cost"],
-                    4
+                    6
                 ),
 
             "saving":
                 round(
                     row["saving"],
-                    4
+                    6
                 )
-
         })
 
 
     return {
-
-        "history":
-            history
-
+        "history": history
     }
 
 
-# --------------------------------------------------
+# =========================
 # SECURITY
-# --------------------------------------------------
+# =========================
 
 @app.get("/security/status")
 def security_status():
 
     return {
-
-        "security":
-            "active",
-
+        "security": "active",
         "database_exists":
-            DB_FILE.exists(),
-
-        "frontend_exists":
-            FRONTEND_FILE.exists()
-
+            DB_FILE.exists()
     }
