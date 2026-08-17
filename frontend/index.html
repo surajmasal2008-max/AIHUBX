@@ -1,564 +1,1574 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
 <title>AIHUBX — AI Cost Optimizer</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#111827}
-header{background:linear-gradient(135deg,#111827,#374151);color:white;padding:30px}
-.header-inner,.container{max-width:1250px;margin:auto}
-.brand{display:flex;align-items:center;gap:12px}
-.brand-icon{font-size:28px}
-header h1{margin:0;font-size:30px}
-header p{margin:5px 0 0;color:#cbd5e1}
-.container{padding:30px 20px 60px}
-.page-title h2{font-size:30px;margin-bottom:5px}
-.page-title p{color:#6b7280}
-.analyzer,.box,.stat-card{
-background:white;border:1px solid #e5e7eb;border-radius:16px;
-padding:24px;box-shadow:0 8px 25px rgba(0,0,0,.07)
-}
-.form-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:16px}
-label{display:block;font-weight:bold;margin-bottom:7px;font-size:14px}
-input,select{width:100%;padding:13px;border:1px solid #d1d5db;border-radius:9px;font-size:15px}
-button{margin-top:20px;padding:14px 24px;border:0;border-radius:9px;background:#111827;color:white;font-size:16px;font-weight:bold;cursor:pointer}
-button:hover{background:#374151}
-button:disabled{opacity:.6}
-.status{margin-top:15px;font-weight:bold;min-height:22px}
-.success{color:#16a34a}.error{color:#dc2626}
-.section-title{margin:35px 0 18px}
-.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
-.stat-label{color:#6b7280;font-size:14px;font-weight:bold}
-.stat-value{font-size:28px;font-weight:800;margin-top:14px}
-.recommendation{margin-top:25px;background:linear-gradient(135deg,#111827,#374151);color:white;border-radius:16px;padding:26px}
-.recommendation-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}
-.recommendation-item{background:rgba(255,255,255,.08);padding:17px;border-radius:10px}
-.recommendation-item span{display:block;color:#cbd5e1;font-size:13px;margin-bottom:7px}
-.recommendation-item strong{font-size:21px}
-.saving{color:#86efac}
-.content-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-top:25px}
-.box{margin-top:25px}
-.content-grid .box{margin-top:0}
-.chart-container{height:330px}
-.model-list{display:grid;gap:12px}
-.model-row{display:flex;justify-content:space-between;padding:15px;border:1px solid #e5e7eb;border-radius:10px}
-.best-model{background:#f0fdf4;border-color:#86efac}
-.badge{background:#dcfce7;color:#16a34a;padding:4px 8px;border-radius:20px;font-size:11px;font-weight:bold;margin-left:7px}
-.table-wrapper{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:600px}
-th,td{padding:13px;text-align:left;border-bottom:1px solid #e5e7eb}
-th{background:#f9fafb}
-.saving-cell{color:#16a34a;font-weight:bold}
-.empty{text-align:center;color:#6b7280;padding:25px}
-footer{text-align:center;color:#6b7280;padding:25px;font-size:13px}
 
-@media(max-width:1000px){
-.form-grid{grid-template-columns:repeat(2,1fr)}
-.stats-grid{grid-template-columns:repeat(3,1fr)}
-.content-grid{grid-template-columns:1fr}
-.recommendation-grid{grid-template-columns:repeat(2,1fr)}
+* {
+    box-sizing: border-box;
 }
-@media(max-width:600px){
-.form-grid,.stats-grid,.recommendation-grid{grid-template-columns:1fr}
-.container{padding:20px 14px}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f7fb;
+    color: #111827;
 }
+
+header {
+    background: linear-gradient(
+        135deg,
+        #111827,
+        #312e81
+    );
+    color: white;
+    padding: 30px;
+}
+
+.header-inner {
+    max-width: 1250px;
+    margin: auto;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.logo {
+    font-size: 34px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 31px;
+}
+
+header p {
+    margin: 5px 0 0;
+    color: #cbd5e1;
+}
+
+.container {
+    max-width: 1250px;
+    margin: auto;
+    padding: 30px 20px 60px;
+}
+
+.page-title h2 {
+    margin-bottom: 5px;
+    font-size: 30px;
+}
+
+.page-title p {
+    color: #6b7280;
+}
+
+.panel {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 25px;
+    margin-top: 25px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.06);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns:
+        1.5fr
+        1fr
+        1fr
+        1fr;
+    gap: 15px;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 7px;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+    font-size: 15px;
+}
+
+button {
+    padding: 13px 20px;
+    border: none;
+    border-radius: 9px;
+    background: #111827;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #374151;
+}
+
+button:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.primary-button {
+    margin-top: 20px;
+}
+
+.danger-button {
+    background: #dc2626;
+}
+
+.danger-button:hover {
+    background: #b91c1c;
+}
+
+.small-button {
+    padding: 7px 11px;
+    font-size: 12px;
+}
+
+.status {
+    margin-top: 15px;
+    min-height: 22px;
+    font-weight: bold;
+}
+
+.success {
+    color: #16a34a;
+}
+
+.error {
+    color: #dc2626;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(5, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.stat {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 15px;
+    padding: 22px;
+    box-shadow: 0 8px 25px rgba(0,0,0,.05);
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.stat-value {
+    margin-top: 12px;
+    font-size: 27px;
+    font-weight: 800;
+}
+
+.recommendation {
+    background:
+        linear-gradient(
+            135deg,
+            #111827,
+            #312e81
+        );
+    color: white;
+    border-radius: 16px;
+    padding: 26px;
+    margin-top: 25px;
+}
+
+.recommendation-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(4, 1fr);
+    gap: 15px;
+}
+
+.rec-item {
+    background: rgba(255,255,255,.08);
+    padding: 18px;
+    border-radius: 10px;
+}
+
+.rec-item span {
+    display: block;
+    color: #cbd5e1;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.rec-item strong {
+    font-size: 21px;
+}
+
+.green {
+    color: #86efac;
+}
+
+.two-column {
+    display: grid;
+    grid-template-columns:
+        1.3fr
+        1fr;
+    gap: 20px;
+    margin-top: 25px;
+}
+
+.chart-box,
+.models-box {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 25px;
+}
+
+.chart-container {
+    height: 320px;
+}
+
+.model-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+}
+
+.recommended {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.badge {
+    background: #dcfce7;
+    color: #15803d;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    margin-left: 6px;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    min-width: 850px;
+}
+
+th,
+td {
+    padding: 13px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+}
+
+th {
+    background: #f9fafb;
+}
+
+.saving-cell {
+    color: #16a34a;
+    font-weight: bold;
+}
+
+.empty {
+    text-align: center;
+    color: #6b7280;
+    padding: 25px;
+}
+
+footer {
+    text-align: center;
+    color: #6b7280;
+    padding: 25px;
+}
+
+@media(max-width:1000px) {
+
+    .form-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .stats-grid {
+        grid-template-columns:
+            repeat(3, 1fr);
+    }
+
+    .two-column {
+        grid-template-columns: 1fr;
+    }
+
+    .recommendation-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+}
+
+@media(max-width:600px) {
+
+    .form-grid,
+    .stats-grid,
+    .recommendation-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .history-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+}
+
 </style>
+
 </head>
+
 
 <body>
 
+
 <header>
+
 <div class="header-inner">
+
 <div class="brand">
-<div class="brand-icon">🚀</div>
+
+<div class="logo">
+🚀
+</div>
+
 <div>
+
 <h1>AIHUBX</h1>
-<p>AI Cost Optimizer</p>
+
+<p>
+AI Cost Optimizer
+</p>
+
 </div>
+
 </div>
+
 </div>
+
 </header>
+
 
 <main class="container">
 
+
 <div class="page-title">
-<h2>AI Usage Analyzer</h2>
-<p>Analyze AI usage, compare model costs and discover potential savings.</p>
+
+<h2>
+AI Usage Analyzer
+</h2>
+
+<p>
+Analyze AI usage, compare model costs and discover potential savings.
+</p>
+
 </div>
 
-<section class="analyzer">
 
-<h2>Analyze AI Usage</h2>
+<section class="panel">
+
+<h2>
+Analyze AI Usage
+</h2>
+
 
 <div class="form-grid">
 
-<div>
-<label>Agent Name</label>
-<input id="agentName" value="My AI Agent" placeholder="Enter agent name">
-</div>
 
 <div>
-<label>AI Model</label>
+
+<label>
+Agent Name
+</label>
+
+<input
+    id="agentName"
+    value="My AI Agent"
+>
+
+
+</div>
+
+
+<div>
+
+<label>
+AI Model
+</label>
+
 <select id="model">
-<option value="GPT">GPT</option>
-<option value="Gemini">Gemini</option>
-<option value="Claude">Claude</option>
-<option value="Llama">Llama</option>
+
+<option value="GPT">
+GPT
+</option>
+
+<option value="Gemini">
+Gemini
+</option>
+
+<option value="Claude">
+Claude
+</option>
+
+<option value="Llama">
+Llama
+</option>
+
 </select>
+
 </div>
+
 
 <div>
-<label>API Calls</label>
-<input id="apiCalls" type="number" min="1" value="100">
+
+<label>
+API Calls
+</label>
+
+<input
+    id="apiCalls"
+    type="number"
+    min="1"
+    value="100"
+>
+
 </div>
+
 
 <div>
-<label>Tokens</label>
-<input id="tokensInput" type="number" min="1" value="5000">
-</div>
+
+<label>
+Tokens
+</label>
+
+<input
+    id="tokensInput"
+    type="number"
+    min="1"
+    value="5000"
+>
 
 </div>
 
-<button id="analyzeButton" onclick="analyzeUsage()">
+
+</div>
+
+
+<button
+    class="primary-button"
+    id="analyzeButton"
+    onclick="analyzeUsage()"
+>
 Analyze AI Usage
 </button>
 
-<div id="status" class="status"></div>
+
+<div
+    id="status"
+    class="status"
+></div>
+
 
 </section>
 
-<h2 class="section-title">Live Dashboard</h2>
+
+<h2 style="margin-top:35px;">
+Live Dashboard
+</h2>
+
 
 <section class="stats-grid">
 
-<div class="stat-card">
-<div class="stat-label">Total Records</div>
-<div class="stat-value" id="totalRecords">0</div>
+
+<div class="stat">
+
+<div class="stat-label">
+Total Records
 </div>
 
-<div class="stat-card">
-<div class="stat-label">Total API Calls</div>
-<div class="stat-value" id="dashboardApiCalls">0</div>
+<div
+    class="stat-value"
+    id="totalRecords"
+>
+0
 </div>
 
-<div class="stat-card">
-<div class="stat-label">Total Tokens</div>
-<div class="stat-value" id="dashboardTokens">0</div>
 </div>
 
-<div class="stat-card">
-<div class="stat-label">Total AI Cost</div>
-<div class="stat-value" id="dashboardCost">₹0</div>
+
+<div class="stat">
+
+<div class="stat-label">
+Total API Calls
 </div>
 
-<div class="stat-card">
-<div class="stat-label">Total Savings</div>
-<div class="stat-value" id="dashboardSavings">₹0</div>
+<div
+    class="stat-value"
+    id="dashboardApiCalls"
+>
+0
 </div>
+
+</div>
+
+
+<div class="stat">
+
+<div class="stat-label">
+Total Tokens
+</div>
+
+<div
+    class="stat-value"
+    id="dashboardTokens"
+>
+0
+</div>
+
+</div>
+
+
+<div class="stat">
+
+<div class="stat-label">
+Total AI Cost
+</div>
+
+<div
+    class="stat-value"
+    id="dashboardCost"
+>
+₹0
+</div>
+
+</div>
+
+
+<div class="stat">
+
+<div class="stat-label">
+Total Savings
+</div>
+
+<div
+    class="stat-value"
+    id="dashboardSavings"
+>
+₹0
+</div>
+
+</div>
+
 
 </section>
+
 
 <section class="recommendation">
 
-<h2>🤖 AIHUBX Recommendation</h2>
 
-<p>AIHUBX analyzes your usage and recommends a potentially cheaper model.</p>
+<h2>
+🤖 AIHUBX Recommendation
+</h2>
+
+
+<p>
+AIHUBX analyzes your usage and recommends a potentially cheaper model.
+</p>
+
 
 <div class="recommendation-grid">
 
-<div class="recommendation-item">
-<span>Recommended Model</span>
-<strong id="recommendedModel">—</strong>
-</div>
 
-<div class="recommendation-item">
-<span>Current Cost</span>
-<strong>₹<span id="currentCost">0</span></strong>
-</div>
+<div class="rec-item">
 
-<div class="recommendation-item">
-<span>Recommended Cost</span>
-<strong>₹<span id="recommendedCost">0</span></strong>
-</div>
+<span>
+Recommended Model
+</span>
 
-<div class="recommendation-item">
-<span>Potential Saving</span>
-<strong class="saving">₹<span id="potentialSaving">0</span></strong>
-</div>
+<strong id="recommendedModel">
+—
+</strong>
 
 </div>
+
+
+<div class="rec-item">
+
+<span>
+Current Cost
+</span>
+
+<strong>
+₹<span id="currentCost">0</span>
+</strong>
+
+</div>
+
+
+<div class="rec-item">
+
+<span>
+Recommended Cost
+</span>
+
+<strong>
+₹<span id="recommendedCost">0</span>
+</strong>
+
+</div>
+
+
+<div class="rec-item">
+
+<span>
+Potential Saving
+</span>
+
+<strong class="green">
+₹<span id="potentialSaving">0</span>
+</strong>
+
+</div>
+
+
+</div>
+
 </section>
 
-<div class="content-grid">
 
-<section class="box">
-<h2>📊 Cost Overview</h2>
+<div class="two-column">
+
+
+<section class="chart-box">
+
+<h2>
+📊 Cost Overview
+</h2>
+
 <div class="chart-container">
+
 <canvas id="costChart"></canvas>
+
 </div>
+
 </section>
 
-<section class="box">
-<h2>🧠 Model Comparison</h2>
-<div id="modelComparison" class="model-list">
-<div class="empty">Analyze usage to see comparison.</div>
+
+<section class="models-box">
+
+<h2>
+🧠 Model Comparison
+</h2>
+
+<div id="modelComparison">
+
+<div class="empty">
+Analyze usage to see model comparison.
 </div>
+
+</div>
+
 </section>
 
+
 </div>
 
-<section class="box">
 
-<h2>📋 Usage History</h2>
+<section class="panel">
 
-<div class="table-wrapper">
+
+<div class="history-header">
+
+<h2>
+📋 Usage History
+</h2>
+
+
+<button
+    class="danger-button"
+    onclick="clearHistory()"
+>
+Clear All History
+</button>
+
+
+</div>
+
+
+<div class="table-wrap">
 
 <table>
 
 <thead>
+
 <tr>
-<th>Agent</th>
-<th>Model</th>
-<th>API Calls</th>
-<th>Tokens</th>
-<th>Cost</th>
-<th>Saving</th>
+
+<th>
+Date
+</th>
+
+<th>
+Agent
+</th>
+
+<th>
+Model
+</th>
+
+<th>
+API Calls
+</th>
+
+<th>
+Tokens
+</th>
+
+<th>
+Cost
+</th>
+
+<th>
+Saving
+</th>
+
+<th>
+Action
+</th>
+
 </tr>
+
 </thead>
 
+
 <tbody id="historyBody">
+
 <tr>
-<td colspan="6" class="empty">No usage history yet.</td>
+
+<td
+    colspan="8"
+    class="empty"
+>
+No usage history yet.
+</td>
+
 </tr>
+
 </tbody>
 
 </table>
 
 </div>
+
 </section>
+
 
 </main>
 
+
 <footer>
+
 AIHUBX © 2026 — AI Cost Optimization Platform
+
 </footer>
+
 
 <script>
 
-/* CORRECT LIVE BACKEND */
-const API_URL = "https://aihubx.onrender.com";
+
+const API_URL =
+    "https://aihubx.onrender.com";
 
 
-const chart = new Chart(
-document.getElementById("costChart"),
-{
-type:"bar",
-data:{
-labels:["Current Cost","Potential Saving"],
-datasets:[{
-label:"AIHUBX Cost Analysis",
-data:[0,0],
-borderRadius:8
-}]
-},
-options:{
-responsive:true,
-maintainAspectRatio:false,
-scales:{
-y:{beginAtZero:true}
-}
-}
-}
-);
+const chart =
+    new Chart(
+        document.getElementById("costChart"),
+        {
+            type: "bar",
+
+            data: {
+                labels: [
+                    "Current Cost",
+                    "Potential Saving"
+                ],
+
+                datasets: [
+                    {
+                        label:
+                            "AIHUBX Cost Analysis",
+
+                        data: [
+                            0,
+                            0
+                        ],
+
+                        borderRadius: 8
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        }
+    );
 
 
-function formatNumber(value){
-return Number(value || 0).toLocaleString("en-IN");
-}
+function money(value) {
 
-
-async function analyzeUsage(){
-
-const button=document.getElementById("analyzeButton");
-const status=document.getElementById("status");
-
-const agentName=
-document.getElementById("agentName").value.trim() ||
-"My AI Agent";
-
-const model=document.getElementById("model").value;
-
-const apiCalls=
-Number(document.getElementById("apiCalls").value);
-
-const tokens=
-Number(document.getElementById("tokensInput").value);
-
-if(apiCalls<=0 || tokens<=0){
-status.innerText="❌ API Calls आणि Tokens 0 पेक्षा मोठे असावेत.";
-status.className="status error";
-return;
-}
-
-button.disabled=true;
-button.innerText="⏳ Analyzing...";
-status.innerText="⏳ AI usage analyze होत आहे...";
-status.className="status";
-
-try{
-
-const response=await fetch(
-API_URL+"/usage",
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-agent_name:agentName,
-model:model,
-api_calls:apiCalls,
-tokens:tokens
-})
-}
-);
-
-if(!response.ok){
-throw new Error("HTTP "+response.status);
-}
-
-const data=await response.json();
-
-if(data.error){
-throw new Error(data.error);
-}
-
-document.getElementById("recommendedModel").innerText=
-data.recommended_model || "—";
-
-document.getElementById("currentCost").innerText=
-formatNumber(data.total_cost);
-
-document.getElementById("recommendedCost").innerText=
-formatNumber(data.recommended_cost);
-
-document.getElementById("potentialSaving").innerText=
-formatNumber(data.estimated_saving);
-
-chart.data.datasets[0].data=[
-Number(data.total_cost || 0),
-Number(data.estimated_saving || 0)
-];
-
-chart.update();
-
-status.innerText="✅ AI Usage Analyzed Successfully";
-status.className="status success";
-
-updateModelComparison(data);
-
-await loadHistory();
-
-}catch(error){
-
-console.error(error);
-
-status.innerText=
-"❌ Backend connection failed";
-
-status.className="status error";
-
-}finally{
-
-button.disabled=false;
-button.innerText="Analyze AI Usage";
-
-}
+    return Number(
+        value || 0
+    ).toLocaleString(
+        "en-IN",
+        {
+            maximumFractionDigits: 4
+        }
+    );
 
 }
 
 
-async function loadHistory(){
+function number(value) {
 
-try{
-
-const response=
-await fetch(API_URL+"/usage/history");
-
-if(!response.ok){
-throw new Error("History failed");
-}
-
-const data=await response.json();
-
-const history=
-Array.isArray(data.history)
-? data.history
-:[];
-
-updateDashboard(history);
-
-const body=document.getElementById("historyBody");
-
-body.innerHTML="";
-
-if(history.length===0){
-
-body.innerHTML=
-`<tr><td colspan="6" class="empty">
-No usage history yet.
-</td></tr>`;
-
-return;
-
-}
-
-history.forEach(item=>{
-
-const row=document.createElement("tr");
-
-row.innerHTML=`
-
-<td>${item.agent_name || "AI Agent"}</td>
-
-<td><strong>${item.model || "Unknown"}</strong></td>
-
-<td>${formatNumber(item.api_calls)}</td>
-
-<td>${formatNumber(item.tokens)}</td>
-
-<td>₹${formatNumber(item.cost)}</td>
-
-<td class="saving-cell">
-₹${formatNumber(item.saving)}
-</td>
-
-`;
-
-body.appendChild(row);
-
-});
-
-}catch(error){
-
-console.error("History error:",error);
-
-}
+    return Number(
+        value || 0
+    ).toLocaleString("en-IN");
 
 }
 
 
-function updateDashboard(history){
+function formatDate(value) {
 
-let calls=0;
-let tokens=0;
-let cost=0;
-let saving=0;
+    if (!value) {
+        return "-";
+    }
 
-history.forEach(item=>{
+    const date =
+        new Date(value);
 
-calls+=Number(item.api_calls || 0);
-tokens+=Number(item.tokens || 0);
-cost+=Number(item.cost || 0);
-saving+=Number(item.saving || 0);
+    if (isNaN(date.getTime())) {
+        return "-";
+    }
 
-});
-
-document.getElementById("totalRecords").innerText=
-formatNumber(history.length);
-
-document.getElementById("dashboardApiCalls").innerText=
-formatNumber(calls);
-
-document.getElementById("dashboardTokens").innerText=
-formatNumber(tokens);
-
-document.getElementById("dashboardCost").innerText=
-"₹"+formatNumber(cost);
-
-document.getElementById("dashboardSavings").innerText=
-"₹"+formatNumber(saving);
+    return date.toLocaleString(
+        "en-IN",
+        {
+            dateStyle: "medium",
+            timeStyle: "short"
+        }
+    );
 
 }
 
 
-function updateModelComparison(data){
+async function analyzeUsage() {
 
-const container=
-document.getElementById("modelComparison");
 
-const recommended=
-data.recommended_model || "";
+    const button =
+        document.getElementById(
+            "analyzeButton"
+        );
 
-const current=
-Number(data.total_cost || 0);
 
-const recommendedCost=
-Number(data.recommended_cost || 0);
+    const status =
+        document.getElementById(
+            "status"
+        );
 
-const prices={
-GPT:0.005,
-Gemini:0.002,
-Claude:0.004,
-Llama:0.001
-};
 
-const tokens=
-Number(data.tokens || 5000);
+    const agentName =
+        document.getElementById(
+            "agentName"
+        ).value.trim()
+        || "My AI Agent";
 
-container.innerHTML="";
 
-Object.keys(prices).forEach(model=>{
+    const model =
+        document.getElementById(
+            "model"
+        ).value;
 
-const cost=
-model===recommended
-?recommendedCost
-:tokens*prices[model];
 
-const row=document.createElement("div");
+    const apiCalls =
+        Number(
+            document.getElementById(
+                "apiCalls"
+            ).value
+        );
 
-row.className=
-"model-row "+
-(model===recommended?"best-model":"");
 
-row.innerHTML=`
+    const tokens =
+        Number(
+            document.getElementById(
+                "tokensInput"
+            ).value
+        );
 
-<div>
-<strong>${model}</strong>
 
-${
-model===recommended
-?'<span class="badge">RECOMMENDED</span>'
-:""
+    if (
+        apiCalls <= 0 ||
+        tokens <= 0
+    ) {
+
+        status.innerText =
+            "❌ API Calls आणि Tokens योग्य भरा.";
+
+        status.className =
+            "status error";
+
+        return;
+
+    }
+
+
+    button.disabled = true;
+
+    button.innerText =
+        "⏳ Analyzing...";
+
+
+    status.innerText =
+        "⏳ AI usage analyze होत आहे...";
+
+    status.className =
+        "status";
+
+
+    try {
+
+
+        const response =
+            await fetch(
+                API_URL + "/usage",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        agent_name:
+                            agentName,
+
+                        model:
+                            model,
+
+                        api_calls:
+                            apiCalls,
+
+                        tokens:
+                            tokens
+
+                    })
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "HTTP " +
+                response.status
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "recommendedModel"
+        ).innerText =
+            data.recommended_model;
+
+
+        document.getElementById(
+            "currentCost"
+        ).innerText =
+            money(data.total_cost);
+
+
+        document.getElementById(
+            "recommendedCost"
+        ).innerText =
+            money(data.recommended_cost);
+
+
+        document.getElementById(
+            "potentialSaving"
+        ).innerText =
+            money(data.estimated_saving);
+
+
+        chart.data.datasets[0].data =
+            [
+                Number(
+                    data.total_cost || 0
+                ),
+
+                Number(
+                    data.estimated_saving || 0
+                )
+            ];
+
+
+        chart.update();
+
+
+        status.innerText =
+            "✅ AI Usage Analyzed Successfully";
+
+        status.className =
+            "status success";
+
+
+        await loadHistory();
+
+
+        await loadSummary();
+
+
+        showModelComparison(data);
+
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+        status.innerText =
+            "❌ Backend connection failed";
+
+        status.className =
+            "status error";
+
+    }
+
+    finally {
+
+        button.disabled = false;
+
+        button.innerText =
+            "Analyze AI Usage";
+
+    }
+
 }
 
-</div>
 
-<div>
-₹${formatNumber(cost)}
-</div>
+async function loadSummary() {
 
-`;
+    try {
 
-container.appendChild(row);
+        const response =
+            await fetch(
+                API_URL +
+                "/usage/summary"
+            );
 
-});
+
+        if (!response.ok) {
+            throw new Error(
+                "Summary failed"
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "totalRecords"
+        ).innerText =
+            number(
+                data.total_records
+            );
+
+
+        document.getElementById(
+            "dashboardApiCalls"
+        ).innerText =
+            number(
+                data.total_api_calls
+            );
+
+
+        document.getElementById(
+            "dashboardTokens"
+        ).innerText =
+            number(
+                data.total_tokens
+            );
+
+
+        document.getElementById(
+            "dashboardCost"
+        ).innerText =
+            "₹" +
+            money(
+                data.total_cost
+            );
+
+
+        document.getElementById(
+            "dashboardSavings"
+        ).innerText =
+            "₹" +
+            money(
+                data.total_saving
+            );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Summary error:",
+            error
+        );
+
+    }
+
+}
+
+
+async function loadHistory() {
+
+    try {
+
+        const response =
+            await fetch(
+                API_URL +
+                "/usage/history"
+            );
+
+
+        if (!response.ok) {
+            throw new Error(
+                "History failed"
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const body =
+            document.getElementById(
+                "historyBody"
+            );
+
+
+        body.innerHTML = "";
+
+
+        if (
+            !data.history ||
+            data.history.length === 0
+        ) {
+
+            body.innerHTML = `
+                <tr>
+                    <td
+                        colspan="8"
+                        class="empty"
+                    >
+                        No usage history yet.
+                    </td>
+                </tr>
+            `;
+
+            return;
+
+        }
+
+
+        data.history.forEach(
+            function(item) {
+
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                row.innerHTML = `
+
+                    <td>
+                        ${formatDate(
+                            item.created_at
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            item.agent_name
+                        )}
+                    </td>
+
+                    <td>
+                        <strong>
+                            ${escapeHtml(
+                                item.model
+                            )}
+                        </strong>
+                    </td>
+
+                    <td>
+                        ${number(
+                            item.api_calls
+                        )}
+                    </td>
+
+                    <td>
+                        ${number(
+                            item.tokens
+                        )}
+                    </td>
+
+                    <td>
+                        ₹${money(
+                            item.cost
+                        )}
+                    </td>
+
+                    <td class="saving-cell">
+                        ₹${money(
+                            item.saving
+                        )}
+                    </td>
+
+                    <td>
+
+                        <button
+                            class="small-button danger-button"
+                            onclick="deleteUsage(
+                                ${item.id}
+                            )"
+                        >
+                            Delete
+                        </button>
+
+                    </td>
+
+                `;
+
+
+                body.appendChild(row);
+
+            }
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "History error:",
+            error
+        );
+
+    }
+
+}
+
+
+async function deleteUsage(id) {
+
+    const confirmed =
+        confirm(
+            "Delete this usage record?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                API_URL +
+                "/usage/" +
+                id,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        if (!response.ok) {
+            throw new Error(
+                "Delete failed"
+            );
+        }
+
+
+        await loadHistory();
+
+        await loadSummary();
+
+    }
+
+    catch (error) {
+
+        alert(
+            "Unable to delete record."
+        );
+
+        console.error(error);
+
+    }
+
+}
+
+
+async function clearHistory() {
+
+    const confirmed =
+        confirm(
+            "Delete ALL usage history?"
+        );
+
+
+    if (!confirmed) {
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                API_URL +
+                "/usage",
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        if (!response.ok) {
+            throw new Error(
+                "Clear failed"
+            );
+        }
+
+
+        await loadHistory();
+
+        await loadSummary();
+
+    }
+
+    catch (error) {
+
+        alert(
+            "Unable to clear history."
+        );
+
+        console.error(error);
+
+    }
+
+}
+
+
+function showModelComparison(data) {
+
+    const container =
+        document.getElementById(
+            "modelComparison"
+        );
+
+
+    const tokens =
+        Number(
+            data.tokens || 0
+        );
+
+
+    const prices = {
+
+        GPT: 0.005,
+
+        Gemini: 0.002,
+
+        Claude: 0.004,
+
+        Llama: 0.001
+
+    };
+
+
+    container.innerHTML = "";
+
+
+    Object.keys(prices).forEach(
+        function(model) {
+
+
+            const cost =
+                tokens *
+                prices[model];
+
+
+            const row =
+                document.createElement(
+                    "div"
+                );
+
+
+            const isRecommended =
+                model ===
+                data.recommended_model;
+
+
+            row.className =
+                "model-row " +
+                (
+                    isRecommended
+                    ? "recommended"
+                    : ""
+                );
+
+
+            row.innerHTML = `
+
+                <div>
+
+                    <strong>
+                        ${model}
+                    </strong>
+
+                    ${
+                        isRecommended
+                        ? '<span class="badge">RECOMMENDED</span>'
+                        : ''
+                    }
+
+                </div>
+
+                <strong>
+                    ₹${money(cost)}
+                </strong>
+
+            `;
+
+
+            container.appendChild(row);
+
+        }
+    );
+
+}
+
+
+function escapeHtml(value) {
+
+    return String(
+        value || ""
+    )
+    .replace(
+        /&/g,
+        "&amp;"
+    )
+    .replace(
+        /</g,
+        "&lt;"
+    )
+    .replace(
+        />/g,
+        "&gt;"
+    )
+    .replace(
+        /"/g,
+        "&quot;"
+    )
+    .replace(
+        /'/g,
+        "&#039;"
+    );
 
 }
 
 
 window.addEventListener(
-"load",
-function(){
-loadHistory();
-}
+    "load",
+    async function() {
+
+        await loadSummary();
+
+        await loadHistory();
+
+    }
 );
 
 </script>
 
 </body>
+
 </html>
