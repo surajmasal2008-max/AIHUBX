@@ -1,803 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIHUBX — AI Cost Optimizer</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-
-* {
-    box-sizing: border-box;
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#111827}
+header{background:linear-gradient(135deg,#111827,#312e81);color:white;padding:25px}
+.header-inner,.container{max-width:1250px;margin:auto}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{font-size:34px}
+header h1{margin:0;font-size:31px}
+header p{margin:5px 0;color:#cbd5e1}
+.user-area{float:right;margin-top:-45px;display:flex;gap:10px;align-items:center}
+.user-name{font-weight:bold}
+.container{padding:30px 20px 60px}
+.panel,.stat,.chart-box,.models-box{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:25px;margin-top:25px;box-shadow:0 8px 25px rgba(0,0,0,.06)}
+.auth{max-width:500px;margin:60px auto}
+.auth h2{margin-top:0}
+.form-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:15px}
+label{display:block;font-weight:bold;margin-bottom:7px}
+input,select{width:100%;padding:13px;border:1px solid #d1d5db;border-radius:9px;font-size:15px}
+button{padding:13px 20px;border:0;border-radius:9px;background:#111827;color:white;font-weight:bold;cursor:pointer}
+button:hover{background:#374151}
+button:disabled{opacity:.6}
+.primary-button{margin-top:20px}
+.danger-button{background:#dc2626}
+.danger-button:hover{background:#b91c1c}
+.secondary-button{background:#4f46e5}
+.small-button{padding:7px 11px;font-size:12px}
+.link-button{background:none;color:#4f46e5;padding:5px}
+.status{margin-top:15px;min-height:22px;font-weight:bold}
+.success{color:#16a34a}
+.error{color:#dc2626}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-top:20px}
+.stat{margin-top:0}
+.stat-label{color:#6b7280;font-size:14px;font-weight:bold}
+.stat-value{margin-top:12px;font-size:27px;font-weight:800}
+.recommendation{background:linear-gradient(135deg,#111827,#312e81);color:white;border-radius:16px;padding:26px;margin-top:25px}
+.recommendation-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}
+.rec-item{background:rgba(255,255,255,.08);padding:18px;border-radius:10px}
+.rec-item span{display:block;color:#cbd5e1;font-size:13px;margin-bottom:8px}
+.rec-item strong{font-size:21px}
+.green{color:#86efac}
+.two-column{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;margin-top:25px}
+.chart-box,.models-box{margin-top:0}
+.chart-container{height:320px}
+.model-row{display:flex;justify-content:space-between;align-items:center;padding:15px;margin-bottom:10px;border:1px solid #e5e7eb;border-radius:10px}
+.recommended{background:#f0fdf4;border-color:#86efac}
+.badge{background:#dcfce7;color:#15803d;padding:4px 8px;border-radius:20px;font-size:11px;margin-left:6px}
+.history-header{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;margin-top:15px;min-width:850px}
+th,td{padding:13px;border-bottom:1px solid #e5e7eb;text-align:left}
+th{background:#f9fafb}
+.saving-cell{color:#16a34a;font-weight:bold}
+.empty{text-align:center;color:#6b7280;padding:25px}
+footer{text-align:center;color:#6b7280;padding:25px}
+.hidden{display:none!important}
+.auth-toggle{text-align:center;margin-top:15px}
+@media(max-width:1000px){
+.form-grid{grid-template-columns:repeat(2,1fr)}
+.stats-grid{grid-template-columns:repeat(3,1fr)}
+.two-column{grid-template-columns:1fr}
+.recommendation-grid{grid-template-columns:repeat(2,1fr)}
 }
-
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f4f7fb;
-    color: #111827;
+@media(max-width:600px){
+.form-grid,.stats-grid,.recommendation-grid{grid-template-columns:1fr}
+.user-area{float:none;margin:15px 0 0}
+.history-header{align-items:flex-start;flex-direction:column}
 }
-
-header {
-    background: linear-gradient(
-        135deg,
-        #111827,
-        #312e81
-    );
-    color: white;
-    padding: 30px;
-}
-
-.header-inner {
-    max-width: 1250px;
-    margin: auto;
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-}
-
-.logo {
-    font-size: 34px;
-}
-
-header h1 {
-    margin: 0;
-    font-size: 31px;
-}
-
-header p {
-    margin: 5px 0 0;
-    color: #cbd5e1;
-}
-
-.container {
-    max-width: 1250px;
-    margin: auto;
-    padding: 30px 20px 60px;
-}
-
-.page-title h2 {
-    margin-bottom: 5px;
-    font-size: 30px;
-}
-
-.page-title p {
-    color: #6b7280;
-}
-
-.panel {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 25px;
-    margin-top: 25px;
-    box-shadow: 0 8px 25px rgba(0,0,0,.06);
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns:
-        1.5fr
-        1fr
-        1fr
-        1fr;
-    gap: 15px;
-}
-
-label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 7px;
-}
-
-input,
-select {
-    width: 100%;
-    padding: 13px;
-    border: 1px solid #d1d5db;
-    border-radius: 9px;
-    font-size: 15px;
-}
-
-button {
-    padding: 13px 20px;
-    border: none;
-    border-radius: 9px;
-    background: #111827;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #374151;
-}
-
-button:disabled {
-    opacity: .6;
-    cursor: not-allowed;
-}
-
-.primary-button {
-    margin-top: 20px;
-}
-
-.danger-button {
-    background: #dc2626;
-}
-
-.danger-button:hover {
-    background: #b91c1c;
-}
-
-.small-button {
-    padding: 7px 11px;
-    font-size: 12px;
-}
-
-.status {
-    margin-top: 15px;
-    min-height: 22px;
-    font-weight: bold;
-}
-
-.success {
-    color: #16a34a;
-}
-
-.error {
-    color: #dc2626;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns:
-        repeat(5, 1fr);
-    gap: 16px;
-    margin-top: 20px;
-}
-
-.stat {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 15px;
-    padding: 22px;
-    box-shadow: 0 8px 25px rgba(0,0,0,.05);
-}
-
-.stat-label {
-    color: #6b7280;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-.stat-value {
-    margin-top: 12px;
-    font-size: 27px;
-    font-weight: 800;
-}
-
-.recommendation {
-    background:
-        linear-gradient(
-            135deg,
-            #111827,
-            #312e81
-        );
-    color: white;
-    border-radius: 16px;
-    padding: 26px;
-    margin-top: 25px;
-}
-
-.recommendation-grid {
-    display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
-    gap: 15px;
-}
-
-.rec-item {
-    background: rgba(255,255,255,.08);
-    padding: 18px;
-    border-radius: 10px;
-}
-
-.rec-item span {
-    display: block;
-    color: #cbd5e1;
-    font-size: 13px;
-    margin-bottom: 8px;
-}
-
-.rec-item strong {
-    font-size: 21px;
-}
-
-.green {
-    color: #86efac;
-}
-
-.two-column {
-    display: grid;
-    grid-template-columns:
-        1.3fr
-        1fr;
-    gap: 20px;
-    margin-top: 25px;
-}
-
-.chart-box,
-.models-box {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 25px;
-}
-
-.chart-container {
-    height: 320px;
-}
-
-.model-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    margin-bottom: 10px;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-}
-
-.recommended {
-    background: #f0fdf4;
-    border-color: #86efac;
-}
-
-.badge {
-    background: #dcfce7;
-    color: #15803d;
-    padding: 4px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    margin-left: 6px;
-}
-
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-}
-
-.table-wrap {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    min-width: 850px;
-}
-
-th,
-td {
-    padding: 13px;
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-}
-
-th {
-    background: #f9fafb;
-}
-
-.saving-cell {
-    color: #16a34a;
-    font-weight: bold;
-}
-
-.empty {
-    text-align: center;
-    color: #6b7280;
-    padding: 25px;
-}
-
-footer {
-    text-align: center;
-    color: #6b7280;
-    padding: 25px;
-}
-
-@media(max-width:1000px) {
-
-    .form-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-    .stats-grid {
-        grid-template-columns:
-            repeat(3, 1fr);
-    }
-
-    .two-column {
-        grid-template-columns: 1fr;
-    }
-
-    .recommendation-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-}
-
-@media(max-width:600px) {
-
-    .form-grid,
-    .stats-grid,
-    .recommendation-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .history-header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-}
-
 </style>
-
 </head>
-
 
 <body>
 
-
 <header>
-
 <div class="header-inner">
-
 <div class="brand">
-
-<div class="logo">
-🚀
-</div>
-
+<div class="logo">🚀</div>
 <div>
-
 <h1>AIHUBX</h1>
-
-<p>
-AI Cost Optimizer
-</p>
-
+<p>AI Cost Optimizer</p>
+</div>
 </div>
 
+<div id="userArea" class="user-area hidden">
+<span id="userName" class="user-name"></span>
+<button class="secondary-button" onclick="logout()">Logout</button>
 </div>
-
 </div>
-
 </header>
-
 
 <main class="container">
 
+<!-- AUTH -->
+<section id="authScreen" class="panel auth">
+
+<div id="loginBox">
+
+<h2>🔐 Login to AIHUBX</h2>
+<p>Access your personal AI cost dashboard.</p>
+
+<label>Email</label>
+<input id="loginEmail" type="email" placeholder="you@example.com">
+
+<br><br>
+
+<label>Password</label>
+<input id="loginPassword" type="password" placeholder="Password">
+
+<button class="primary-button" style="width:100%" onclick="login()">
+Login
+</button>
+
+<div id="loginStatus" class="status"></div>
+
+<div class="auth-toggle">
+Don't have an account?
+<button class="link-button" onclick="showRegister()">Register</button>
+</div>
+
+</div>
+
+
+<div id="registerBox" class="hidden">
+
+<h2>🚀 Create AIHUBX Account</h2>
+<p>Create your account and keep your AI usage private.</p>
+
+<label>Name</label>
+<input id="registerName" placeholder="Your name">
+
+<br><br>
+
+<label>Email</label>
+<input id="registerEmail" type="email" placeholder="you@example.com">
+
+<br><br>
+
+<label>Password</label>
+<input id="registerPassword" type="password" placeholder="Minimum 6 characters">
+
+<button class="primary-button" style="width:100%" onclick="register()">
+Create Account
+</button>
+
+<div id="registerStatus" class="status"></div>
+
+<div class="auth-toggle">
+Already have an account?
+<button class="link-button" onclick="showLogin()">Login</button>
+</div>
+
+</div>
+
+</section>
+
+
+<!-- DASHBOARD -->
+<section id="dashboard" class="hidden">
 
 <div class="page-title">
-
-<h2>
-AI Usage Analyzer
-</h2>
-
-<p>
-Analyze AI usage, compare model costs and discover potential savings.
-</p>
-
+<h2>AI Usage Analyzer</h2>
+<p>Analyze AI usage, compare model costs and discover potential savings.</p>
 </div>
 
 
 <section class="panel">
 
-<h2>
-Analyze AI Usage
-</h2>
-
+<h2>Analyze AI Usage</h2>
 
 <div class="form-grid">
 
-
 <div>
-
-<label>
-Agent Name
-</label>
-
-<input
-    id="agentName"
-    value="My AI Agent"
->
-
-
+<label>Agent Name</label>
+<input id="agentName" value="My AI Agent">
 </div>
 
-
 <div>
-
-<label>
-AI Model
-</label>
-
+<label>AI Model</label>
 <select id="model">
-
-<option value="GPT">
-GPT
-</option>
-
-<option value="Gemini">
-Gemini
-</option>
-
-<option value="Claude">
-Claude
-</option>
-
-<option value="Llama">
-Llama
-</option>
-
+<option value="GPT">GPT</option>
+<option value="Gemini">Gemini</option>
+<option value="Claude">Claude</option>
+<option value="Llama">Llama</option>
 </select>
-
 </div>
-
 
 <div>
-
-<label>
-API Calls
-</label>
-
-<input
-    id="apiCalls"
-    type="number"
-    min="1"
-    value="100"
->
-
+<label>API Calls</label>
+<input id="apiCalls" type="number" min="1" value="100">
 </div>
-
 
 <div>
-
-<label>
-Tokens
-</label>
-
-<input
-    id="tokensInput"
-    type="number"
-    min="1"
-    value="5000"
->
+<label>Tokens</label>
+<input id="tokensInput" type="number" min="1" value="5000">
+</div>
 
 </div>
 
-
-</div>
-
-
-<button
-    class="primary-button"
-    id="analyzeButton"
-    onclick="analyzeUsage()"
->
+<button class="primary-button" id="analyzeButton" onclick="analyzeUsage()">
 Analyze AI Usage
 </button>
 
-
-<div
-    id="status"
-    class="status"
-></div>
-
+<div id="status" class="status"></div>
 
 </section>
 
 
-<h2 style="margin-top:35px;">
-Live Dashboard
-</h2>
-
+<h2 style="margin-top:35px">Live Dashboard</h2>
 
 <section class="stats-grid">
 
+<div class="stat">
+<div class="stat-label">Total Records</div>
+<div class="stat-value" id="totalRecords">0</div>
+</div>
 
 <div class="stat">
-
-<div class="stat-label">
-Total Records
+<div class="stat-label">Total API Calls</div>
+<div class="stat-value" id="dashboardApiCalls">0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="totalRecords"
->
-0
-</div>
-
-</div>
-
 
 <div class="stat">
-
-<div class="stat-label">
-Total API Calls
+<div class="stat-label">Total Tokens</div>
+<div class="stat-value" id="dashboardTokens">0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="dashboardApiCalls"
->
-0
-</div>
-
-</div>
-
 
 <div class="stat">
-
-<div class="stat-label">
-Total Tokens
+<div class="stat-label">Total AI Cost</div>
+<div class="stat-value" id="dashboardCost">₹0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="dashboardTokens"
->
-0
-</div>
-
-</div>
-
 
 <div class="stat">
-
-<div class="stat-label">
-Total AI Cost
+<div class="stat-label">Total Savings</div>
+<div class="stat-value" id="dashboardSavings">₹0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="dashboardCost"
->
-₹0
-</div>
-
-</div>
-
-
-<div class="stat">
-
-<div class="stat-label">
-Total Savings
-</div>
-
-<div
-    class="stat-value"
-    id="dashboardSavings"
->
-₹0
-</div>
-
-</div>
-
 
 </section>
 
 
 <section class="recommendation">
 
+<h2>🤖 AIHUBX Recommendation</h2>
 
-<h2>
-🤖 AIHUBX Recommendation
-</h2>
-
-
-<p>
-AIHUBX analyzes your usage and recommends a potentially cheaper model.
-</p>
-
+<p>AIHUBX analyzes your usage and recommends a potentially cheaper model.</p>
 
 <div class="recommendation-grid">
 
+<div class="rec-item">
+<span>Recommended Model</span>
+<strong id="recommendedModel">—</strong>
+</div>
 
 <div class="rec-item">
-
-<span>
-Recommended Model
-</span>
-
-<strong id="recommendedModel">
-—
-</strong>
-
+<span>Current Cost</span>
+<strong>₹<span id="currentCost">0</span></strong>
 </div>
-
 
 <div class="rec-item">
-
-<span>
-Current Cost
-</span>
-
-<strong>
-₹<span id="currentCost">0</span>
-</strong>
-
+<span>Recommended Cost</span>
+<strong>₹<span id="recommendedCost">0</span></strong>
 </div>
-
 
 <div class="rec-item">
-
-<span>
-Recommended Cost
-</span>
-
-<strong>
-₹<span id="recommendedCost">0</span>
-</strong>
-
+<span>Potential Saving</span>
+<strong class="green">₹<span id="potentialSaving">0</span></strong>
 </div>
 
-
-<div class="rec-item">
-
-<span>
-Potential Saving
-</span>
-
-<strong class="green">
-₹<span id="potentialSaving">0</span>
-</strong>
-
 </div>
-
-
-</div>
-
 </section>
 
 
 <div class="two-column">
 
-
 <section class="chart-box">
-
-<h2>
-📊 Cost Overview
-</h2>
-
+<h2>📊 Cost Overview</h2>
 <div class="chart-container">
-
 <canvas id="costChart"></canvas>
-
 </div>
-
 </section>
-
 
 <section class="models-box">
-
-<h2>
-🧠 Model Comparison
-</h2>
-
+<h2>🧠 Model Comparison</h2>
 <div id="modelComparison">
-
-<div class="empty">
-Analyze usage to see model comparison.
+<div class="empty">Analyze usage to see model comparison.</div>
 </div>
-
-</div>
-
 </section>
-
 
 </div>
 
 
 <section class="panel">
 
-
 <div class="history-header">
 
-<h2>
-📋 Usage History
-</h2>
+<h2>📋 Usage History</h2>
 
-
-<button
-    class="danger-button"
-    onclick="clearHistory()"
->
+<button class="danger-button" onclick="clearHistory()">
 Clear All History
 </button>
 
-
 </div>
-
 
 <div class="table-wrap">
 
 <table>
 
 <thead>
-
 <tr>
-
-<th>
-Date
-</th>
-
-<th>
-Agent
-</th>
-
-<th>
-Model
-</th>
-
-<th>
-API Calls
-</th>
-
-<th>
-Tokens
-</th>
-
-<th>
-Cost
-</th>
-
-<th>
-Saving
-</th>
-
-<th>
-Action
-</th>
-
+<th>Date</th>
+<th>Agent</th>
+<th>Model</th>
+<th>API Calls</th>
+<th>Tokens</th>
+<th>Cost</th>
+<th>Saving</th>
+<th>Action</th>
 </tr>
-
 </thead>
 
-
 <tbody id="historyBody">
-
 <tr>
-
-<td
-    colspan="8"
-    class="empty"
->
-No usage history yet.
-</td>
-
+<td colspan="8" class="empty">No usage history yet.</td>
 </tr>
-
 </tbody>
 
 </table>
@@ -806,769 +336,547 @@ No usage history yet.
 
 </section>
 
+</section>
 
 </main>
 
-
 <footer>
-
 AIHUBX © 2026 — AI Cost Optimization Platform
-
 </footer>
 
 
 <script>
 
+const API_URL = "https://aihubx.onrender.com";
 
-const API_URL =
-    "https://aihubx.onrender.com";
+let token = localStorage.getItem("aihubx_token");
+let currentUser = null;
 
-
-const chart =
-    new Chart(
-        document.getElementById("costChart"),
-        {
-            type: "bar",
-
-            data: {
-                labels: [
-                    "Current Cost",
-                    "Potential Saving"
-                ],
-
-                datasets: [
-                    {
-                        label:
-                            "AIHUBX Cost Analysis",
-
-                        data: [
-                            0,
-                            0
-                        ],
-
-                        borderRadius: 8
-                    }
-                ]
-            },
-
-            options: {
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        }
-    );
-
-
-function money(value) {
-
-    return Number(
-        value || 0
-    ).toLocaleString(
-        "en-IN",
-        {
-            maximumFractionDigits: 4
-        }
-    );
-
+const chart = new Chart(
+document.getElementById("costChart"),
+{
+type:"bar",
+data:{
+labels:["Current Cost","Potential Saving"],
+datasets:[{
+label:"AIHUBX Cost Analysis",
+data:[0,0],
+borderRadius:8
+}]
+},
+options:{
+responsive:true,
+maintainAspectRatio:false,
+scales:{y:{beginAtZero:true}}
 }
-
-
-function number(value) {
-
-    return Number(
-        value || 0
-    ).toLocaleString("en-IN");
-
 }
-
-
-function formatDate(value) {
-
-    if (!value) {
-        return "-";
-    }
-
-    const date =
-        new Date(value);
-
-    if (isNaN(date.getTime())) {
-        return "-";
-    }
-
-    return date.toLocaleString(
-        "en-IN",
-        {
-            dateStyle: "medium",
-            timeStyle: "short"
-        }
-    );
-
-}
-
-
-async function analyzeUsage() {
-
-
-    const button =
-        document.getElementById(
-            "analyzeButton"
-        );
-
-
-    const status =
-        document.getElementById(
-            "status"
-        );
-
-
-    const agentName =
-        document.getElementById(
-            "agentName"
-        ).value.trim()
-        || "My AI Agent";
-
-
-    const model =
-        document.getElementById(
-            "model"
-        ).value;
-
-
-    const apiCalls =
-        Number(
-            document.getElementById(
-                "apiCalls"
-            ).value
-        );
-
-
-    const tokens =
-        Number(
-            document.getElementById(
-                "tokensInput"
-            ).value
-        );
-
-
-    if (
-        apiCalls <= 0 ||
-        tokens <= 0
-    ) {
-
-        status.innerText =
-            "❌ API Calls आणि Tokens योग्य भरा.";
-
-        status.className =
-            "status error";
-
-        return;
-
-    }
-
-
-    button.disabled = true;
-
-    button.innerText =
-        "⏳ Analyzing...";
-
-
-    status.innerText =
-        "⏳ AI usage analyze होत आहे...";
-
-    status.className =
-        "status";
-
-
-    try {
-
-
-        const response =
-            await fetch(
-                API_URL + "/usage",
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        agent_name:
-                            agentName,
-
-                        model:
-                            model,
-
-                        api_calls:
-                            apiCalls,
-
-                        tokens:
-                            tokens
-
-                    })
-                }
-            );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "HTTP " +
-                response.status
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        document.getElementById(
-            "recommendedModel"
-        ).innerText =
-            data.recommended_model;
-
-
-        document.getElementById(
-            "currentCost"
-        ).innerText =
-            money(data.total_cost);
-
-
-        document.getElementById(
-            "recommendedCost"
-        ).innerText =
-            money(data.recommended_cost);
-
-
-        document.getElementById(
-            "potentialSaving"
-        ).innerText =
-            money(data.estimated_saving);
-
-
-        chart.data.datasets[0].data =
-            [
-                Number(
-                    data.total_cost || 0
-                ),
-
-                Number(
-                    data.estimated_saving || 0
-                )
-            ];
-
-
-        chart.update();
-
-
-        status.innerText =
-            "✅ AI Usage Analyzed Successfully";
-
-        status.className =
-            "status success";
-
-
-        await loadHistory();
-
-
-        await loadSummary();
-
-
-        showModelComparison(data);
-
-
-    }
-
-    catch (error) {
-
-        console.error(error);
-
-        status.innerText =
-            "❌ Backend connection failed";
-
-        status.className =
-            "status error";
-
-    }
-
-    finally {
-
-        button.disabled = false;
-
-        button.innerText =
-            "Analyze AI Usage";
-
-    }
-
-}
-
-
-async function loadSummary() {
-
-    try {
-
-        const response =
-            await fetch(
-                API_URL +
-                "/usage/summary"
-            );
-
-
-        if (!response.ok) {
-            throw new Error(
-                "Summary failed"
-            );
-        }
-
-
-        const data =
-            await response.json();
-
-
-        document.getElementById(
-            "totalRecords"
-        ).innerText =
-            number(
-                data.total_records
-            );
-
-
-        document.getElementById(
-            "dashboardApiCalls"
-        ).innerText =
-            number(
-                data.total_api_calls
-            );
-
-
-        document.getElementById(
-            "dashboardTokens"
-        ).innerText =
-            number(
-                data.total_tokens
-            );
-
-
-        document.getElementById(
-            "dashboardCost"
-        ).innerText =
-            "₹" +
-            money(
-                data.total_cost
-            );
-
-
-        document.getElementById(
-            "dashboardSavings"
-        ).innerText =
-            "₹" +
-            money(
-                data.total_saving
-            );
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Summary error:",
-            error
-        );
-
-    }
-
-}
-
-
-async function loadHistory() {
-
-    try {
-
-        const response =
-            await fetch(
-                API_URL +
-                "/usage/history"
-            );
-
-
-        if (!response.ok) {
-            throw new Error(
-                "History failed"
-            );
-        }
-
-
-        const data =
-            await response.json();
-
-
-        const body =
-            document.getElementById(
-                "historyBody"
-            );
-
-
-        body.innerHTML = "";
-
-
-        if (
-            !data.history ||
-            data.history.length === 0
-        ) {
-
-            body.innerHTML = `
-                <tr>
-                    <td
-                        colspan="8"
-                        class="empty"
-                    >
-                        No usage history yet.
-                    </td>
-                </tr>
-            `;
-
-            return;
-
-        }
-
-
-        data.history.forEach(
-            function(item) {
-
-
-                const row =
-                    document.createElement(
-                        "tr"
-                    );
-
-
-                row.innerHTML = `
-
-                    <td>
-                        ${formatDate(
-                            item.created_at
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHtml(
-                            item.agent_name
-                        )}
-                    </td>
-
-                    <td>
-                        <strong>
-                            ${escapeHtml(
-                                item.model
-                            )}
-                        </strong>
-                    </td>
-
-                    <td>
-                        ${number(
-                            item.api_calls
-                        )}
-                    </td>
-
-                    <td>
-                        ${number(
-                            item.tokens
-                        )}
-                    </td>
-
-                    <td>
-                        ₹${money(
-                            item.cost
-                        )}
-                    </td>
-
-                    <td class="saving-cell">
-                        ₹${money(
-                            item.saving
-                        )}
-                    </td>
-
-                    <td>
-
-                        <button
-                            class="small-button danger-button"
-                            onclick="deleteUsage(
-                                ${item.id}
-                            )"
-                        >
-                            Delete
-                        </button>
-
-                    </td>
-
-                `;
-
-
-                body.appendChild(row);
-
-            }
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "History error:",
-            error
-        );
-
-    }
-
-}
-
-
-async function deleteUsage(id) {
-
-    const confirmed =
-        confirm(
-            "Delete this usage record?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                API_URL +
-                "/usage/" +
-                id,
-                {
-                    method: "DELETE"
-                }
-            );
-
-
-        if (!response.ok) {
-            throw new Error(
-                "Delete failed"
-            );
-        }
-
-
-        await loadHistory();
-
-        await loadSummary();
-
-    }
-
-    catch (error) {
-
-        alert(
-            "Unable to delete record."
-        );
-
-        console.error(error);
-
-    }
-
-}
-
-
-async function clearHistory() {
-
-    const confirmed =
-        confirm(
-            "Delete ALL usage history?"
-        );
-
-
-    if (!confirmed) {
-        return;
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                API_URL +
-                "/usage",
-                {
-                    method: "DELETE"
-                }
-            );
-
-
-        if (!response.ok) {
-            throw new Error(
-                "Clear failed"
-            );
-        }
-
-
-        await loadHistory();
-
-        await loadSummary();
-
-    }
-
-    catch (error) {
-
-        alert(
-            "Unable to clear history."
-        );
-
-        console.error(error);
-
-    }
-
-}
-
-
-function showModelComparison(data) {
-
-    const container =
-        document.getElementById(
-            "modelComparison"
-        );
-
-
-    const tokens =
-        Number(
-            data.tokens || 0
-        );
-
-
-    const prices = {
-
-        GPT: 0.005,
-
-        Gemini: 0.002,
-
-        Claude: 0.004,
-
-        Llama: 0.001
-
-    };
-
-
-    container.innerHTML = "";
-
-
-    Object.keys(prices).forEach(
-        function(model) {
-
-
-            const cost =
-                tokens *
-                prices[model];
-
-
-            const row =
-                document.createElement(
-                    "div"
-                );
-
-
-            const isRecommended =
-                model ===
-                data.recommended_model;
-
-
-            row.className =
-                "model-row " +
-                (
-                    isRecommended
-                    ? "recommended"
-                    : ""
-                );
-
-
-            row.innerHTML = `
-
-                <div>
-
-                    <strong>
-                        ${model}
-                    </strong>
-
-                    ${
-                        isRecommended
-                        ? '<span class="badge">RECOMMENDED</span>'
-                        : ''
-                    }
-
-                </div>
-
-                <strong>
-                    ₹${money(cost)}
-                </strong>
-
-            `;
-
-
-            container.appendChild(row);
-
-        }
-    );
-
-}
-
-
-function escapeHtml(value) {
-
-    return String(
-        value || ""
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#039;"
-    );
-
-}
-
-
-window.addEventListener(
-    "load",
-    async function() {
-
-        await loadSummary();
-
-        await loadHistory();
-
-    }
 );
+
+
+function money(value){
+return Number(value || 0).toLocaleString("en-IN",{maximumFractionDigits:4});
+}
+
+function number(value){
+return Number(value || 0).toLocaleString("en-IN");
+}
+
+function formatDate(value){
+if(!value)return "-";
+const date=new Date(value);
+if(isNaN(date.getTime()))return "-";
+return date.toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"});
+}
+
+function escapeHtml(value){
+return String(value || "")
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
+.replace(/'/g,"&#039;");
+}
+
+
+function showLogin(){
+document.getElementById("loginBox").classList.remove("hidden");
+document.getElementById("registerBox").classList.add("hidden");
+}
+
+
+function showRegister(){
+document.getElementById("loginBox").classList.add("hidden");
+document.getElementById("registerBox").classList.remove("hidden");
+}
+
+
+function setAuthStatus(id,message,success=false){
+const el=document.getElementById(id);
+el.innerText=message;
+el.className="status "+(success?"success":"error");
+}
+
+
+async function register(){
+
+const name=document.getElementById("registerName").value.trim();
+const email=document.getElementById("registerEmail").value.trim();
+const password=document.getElementById("registerPassword").value;
+
+if(!name || !email || password.length<6){
+setAuthStatus("registerStatus","❌ Name, valid email आणि 6+ character password भरा.");
+return;
+}
+
+try{
+
+const response=await fetch(API_URL+"/auth/register",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({name,email,password})
+});
+
+const data=await response.json();
+
+if(!response.ok){
+throw new Error(data.detail || "Registration failed");
+}
+
+token=data.token;
+currentUser=data.user;
+
+localStorage.setItem("aihubx_token",token);
+
+setAuthStatus("registerStatus","✅ Account created successfully!",true);
+
+setTimeout(showDashboard,500);
+
+}catch(error){
+setAuthStatus("registerStatus","❌ "+error.message);
+}
+
+}
+
+
+async function login(){
+
+const email=document.getElementById("loginEmail").value.trim();
+const password=document.getElementById("loginPassword").value;
+
+if(!email || !password){
+setAuthStatus("loginStatus","❌ Email आणि password भरा.");
+return;
+}
+
+try{
+
+const response=await fetch(API_URL+"/auth/login",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email,password})
+});
+
+const data=await response.json();
+
+if(!response.ok){
+throw new Error(data.detail || "Login failed");
+}
+
+token=data.token;
+currentUser=data.user;
+
+localStorage.setItem("aihubx_token",token);
+
+showDashboard();
+
+}catch(error){
+setAuthStatus("loginStatus","❌ "+error.message);
+}
+
+}
+
+
+function authHeaders(extra={}){
+return {
+...extra,
+"Authorization":"Bearer "+token
+};
+}
+
+
+async function checkSession(){
+
+if(!token){
+showLoginScreen();
+return;
+}
+
+try{
+
+const response=await fetch(API_URL+"/auth/me",{
+headers:authHeaders()
+});
+
+if(!response.ok){
+throw new Error("Session expired");
+}
+
+const data=await response.json();
+
+currentUser=data.user;
+
+showDashboard();
+
+}catch(error){
+
+localStorage.removeItem("aihubx_token");
+token=null;
+showLoginScreen();
+
+}
+
+}
+
+
+function showLoginScreen(){
+
+document.getElementById("authScreen").classList.remove("hidden");
+document.getElementById("dashboard").classList.add("hidden");
+document.getElementById("userArea").classList.add("hidden");
+
+}
+
+
+function showDashboard(){
+
+document.getElementById("authScreen").classList.add("hidden");
+document.getElementById("dashboard").classList.remove("hidden");
+document.getElementById("userArea").classList.remove("hidden");
+
+if(currentUser){
+document.getElementById("userName").innerText=
+"Hi, "+currentUser.name;
+}
+
+loadSummary();
+loadHistory();
+
+}
+
+
+async function logout(){
+
+try{
+
+await fetch(API_URL+"/auth/logout",{
+method:"POST",
+headers:authHeaders()
+});
+
+}catch(error){
+console.error(error);
+}
+
+localStorage.removeItem("aihubx_token");
+token=null;
+currentUser=null;
+
+showLoginScreen();
+
+}
+
+
+async function analyzeUsage(){
+
+const button=document.getElementById("analyzeButton");
+const status=document.getElementById("status");
+
+const agentName=document.getElementById("agentName").value.trim() || "My AI Agent";
+const model=document.getElementById("model").value;
+const apiCalls=Number(document.getElementById("apiCalls").value);
+const tokens=Number(document.getElementById("tokensInput").value);
+
+if(apiCalls<=0 || tokens<=0){
+status.innerText="❌ API Calls आणि Tokens योग्य भरा.";
+status.className="status error";
+return;
+}
+
+button.disabled=true;
+button.innerText="⏳ Analyzing...";
+status.innerText="⏳ AI usage analyze होत आहे...";
+status.className="status";
+
+try{
+
+const response=await fetch(API_URL+"/usage",{
+method:"POST",
+headers:authHeaders({
+"Content-Type":"application/json"
+}),
+body:JSON.stringify({
+agent_name:agentName,
+model:model,
+api_calls:apiCalls,
+tokens:tokens
+})
+});
+
+const data=await response.json();
+
+if(!response.ok){
+throw new Error(data.detail || "Analysis failed");
+}
+
+document.getElementById("recommendedModel").innerText=data.recommended_model;
+document.getElementById("currentCost").innerText=money(data.total_cost);
+document.getElementById("recommendedCost").innerText=money(data.recommended_cost);
+document.getElementById("potentialSaving").innerText=money(data.estimated_saving);
+
+chart.data.datasets[0].data=[
+Number(data.total_cost || 0),
+Number(data.estimated_saving || 0)
+];
+
+chart.update();
+
+status.innerText="✅ AI Usage Analyzed Successfully";
+status.className="status success";
+
+await loadHistory();
+await loadSummary();
+
+showModelComparison(data);
+
+}catch(error){
+
+console.error(error);
+status.innerText="❌ "+error.message;
+status.className="status error";
+
+}finally{
+
+button.disabled=false;
+button.innerText="Analyze AI Usage";
+
+}
+
+}
+
+
+async function loadSummary(){
+
+try{
+
+const response=await fetch(API_URL+"/usage/summary",{
+headers:authHeaders()
+});
+
+if(!response.ok){
+throw new Error("Summary failed");
+}
+
+const data=await response.json();
+
+document.getElementById("totalRecords").innerText=number(data.total_records);
+document.getElementById("dashboardApiCalls").innerText=number(data.total_api_calls);
+document.getElementById("dashboardTokens").innerText=number(data.total_tokens);
+document.getElementById("dashboardCost").innerText="₹"+money(data.total_cost);
+document.getElementById("dashboardSavings").innerText="₹"+money(data.total_saving);
+
+}catch(error){
+console.error("Summary error:",error);
+}
+
+}
+
+
+async function loadHistory(){
+
+try{
+
+const response=await fetch(API_URL+"/usage/history",{
+headers:authHeaders()
+});
+
+if(!response.ok){
+throw new Error("History failed");
+}
+
+const data=await response.json();
+
+const body=document.getElementById("historyBody");
+
+body.innerHTML="";
+
+if(!data.history || data.history.length===0){
+
+body.innerHTML=`
+<tr>
+<td colspan="8" class="empty">
+No usage history yet.
+</td>
+</tr>
+`;
+
+return;
+
+}
+
+data.history.forEach(item=>{
+
+const row=document.createElement("tr");
+
+row.innerHTML=`
+
+<td>${formatDate(item.created_at)}</td>
+
+<td>${escapeHtml(item.agent_name)}</td>
+
+<td><strong>${escapeHtml(item.model)}</strong></td>
+
+<td>${number(item.api_calls)}</td>
+
+<td>${number(item.tokens)}</td>
+
+<td>₹${money(item.cost)}</td>
+
+<td class="saving-cell">₹${money(item.saving)}</td>
+
+<td>
+<button
+class="small-button danger-button"
+onclick="deleteUsage(${item.id})">
+Delete
+</button>
+</td>
+
+`;
+
+body.appendChild(row);
+
+});
+
+}catch(error){
+console.error("History error:",error);
+}
+
+}
+
+
+async function deleteUsage(id){
+
+if(!confirm("Delete this usage record?")){
+return;
+}
+
+try{
+
+const response=await fetch(API_URL+"/usage/"+id,{
+method:"DELETE",
+headers:authHeaders()
+});
+
+if(!response.ok){
+throw new Error("Delete failed");
+}
+
+await loadHistory();
+await loadSummary();
+
+}catch(error){
+
+alert("Unable to delete record.");
+console.error(error);
+
+}
+
+}
+
+
+async function clearHistory(){
+
+if(!confirm("Delete ALL your usage history?")){
+return;
+}
+
+try{
+
+const response=await fetch(API_URL+"/usage",{
+method:"DELETE",
+headers:authHeaders()
+});
+
+if(!response.ok){
+throw new Error("Clear failed");
+}
+
+await loadHistory();
+await loadSummary();
+
+}catch(error){
+
+alert("Unable to clear history.");
+console.error(error);
+
+}
+
+}
+
+
+function showModelComparison(data){
+
+const container=document.getElementById("modelComparison");
+
+const tokens=Number(data.tokens || 0);
+
+const prices={
+GPT:0.005,
+Gemini:0.002,
+Claude:0.004,
+Llama:0.001
+};
+
+container.innerHTML="";
+
+Object.keys(prices).forEach(model=>{
+
+const cost=tokens*prices[model];
+
+const row=document.createElement("div");
+
+const isRecommended=model===data.recommended_model;
+
+row.className="model-row "+(isRecommended?"recommended":"");
+
+row.innerHTML=`
+
+<div>
+
+<strong>${model}</strong>
+
+${
+isRecommended
+? '<span class="badge">RECOMMENDED</span>'
+: ''
+}
+
+</div>
+
+<strong>₹${money(cost)}</strong>
+
+`;
+
+container.appendChild(row);
+
+});
+
+}
+
+
+window.addEventListener("load",checkSession);
 
 </script>
 
 </body>
-
 </html>
