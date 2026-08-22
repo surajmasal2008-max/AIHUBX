@@ -36,8 +36,8 @@ MODEL_PRICES = {
 
 class RegisterData(BaseModel):
     name: str = Field(min_length=1, max_length=100)
-    email: str = Field(min_length=5, max_length=150)
-    password: str = Field(min_length=6, max_length=100)
+    email: str = Field(min_length=3, max_length=200)
+    password: str = Field(min_length=6, max_length=200)
 
 
 class LoginData(BaseModel):
@@ -58,35 +58,25 @@ def get_db():
     return db
 
 
-def hash_password(password: str, salt: str = None):
-    if salt is None:
-        salt = secrets.token_hex(16)
-
-    hashed = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode(),
-        salt.encode(),
-        120000
-    ).hex()
-
-    return salt, hashed
+def hash_password(password):
+    return hashlib.sha256(
+        password.encode("utf-8")
+    ).hexdigest()
 
 
-def verify_password(password: str, salt: str, stored_hash: str):
-    _, hashed = hash_password(password, salt)
-    return secrets.compare_digest(hashed, stored_hash)
+def normalize_email(email):
+    return email.strip().lower()
 
 
-def create_tables():
+def create_table():
     db = get_db()
 
     db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
+            email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            password_salt TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
     """)
@@ -103,6 +93,7 @@ def create_tables():
     db.execute("""
         CREATE TABLE IF NOT EXISTS usage_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
             agent_name TEXT NOT NULL,
             model TEXT NOT NULL,
             api_calls INTEGER NOT NULL,
@@ -120,11 +111,6 @@ def create_tables():
         ).fetchall()
     ]
 
-    if "user_id" not in columns:
-        db.execute(
-            "ALTER TABLE usage_history ADD COLUMN user_id INTEGER"
-        )
-
     if "created_at" not in columns:
         db.execute(
             "ALTER TABLE usage_history ADD COLUMN created_at TEXT"
@@ -138,31 +124,42 @@ def create_tables():
             datetime.now(timezone.utc).isoformat(),
         ))
 
+    if "user_id" not in columns:
+        db.execute(
+            "ALTER TABLE usage_history ADD COLUMN user_id INTEGER"
+        )
+
     db.commit()
     db.close()
 
 
-create_tables()
+create_table()
 
 
-def get_current_user(authorization: str = None):
+def get_current_user(authorization: str | None):
     if not authorization:
         raise HTTPException(
             status_code=401,
-            detail="Login required"
+            detail="Authentication required"
         )
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=401,
-            detail="Invalid authorization"
+            detail="Invalid authentication token"
         )
 
     token = authorization.replace("Bearer ", "", 1).strip()
 
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication token"
+        )
+
     db = get_db()
 
-    user = db.execute("""
+    row = db.execute("""
         SELECT
             users.id,
             users.name,
@@ -175,16 +172,17 @@ def get_current_user(authorization: str = None):
 
     db.close()
 
-    if not user:
+    if not row:
         raise HTTPException(
             status_code=401,
-            detail="Session expired. Please login again."
+            detail="Invalid or expired session"
         )
 
-    return user
+    return row
 
 
-def calculate_usage(model: str, tokens: int):
+def calculate_usage(model, tokens):
+
     if model not in MODEL_PRICES:
         raise HTTPException(
             status_code=400,
@@ -220,6 +218,7 @@ def calculate_usage(model: str, tokens: int):
 
 @app.get("/")
 def home():
+
     if not FRONTEND_FILE.exists():
         return {
             "message": "AIHUBX is running!",
@@ -249,10 +248,14 @@ def health():
     }
 
 
+# -------------------------
+# AUTHENTICATION
+# -------------------------
+
 @app.post("/auth/register")
 def register(data: RegisterData):
 
-    email = data.email.strip().lower()
+    email = normalize_email(data.email)
 
     db = get_db()
 
@@ -263,14 +266,11 @@ def register(data: RegisterData):
 
     if existing:
         db.close()
+
         raise HTTPException(
-            status_code=409,
+            status_code=400,
             detail="Email already registered"
         )
-
-    salt, password_hash = hash_password(
-        data.password
-    )
 
     created_at = datetime.now(
         timezone.utc
@@ -282,21 +282,19 @@ def register(data: RegisterData):
             name,
             email,
             password_hash,
-            password_salt,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
     """, (
         data.name.strip(),
         email,
-        password_hash,
-        salt,
+        hash_password(data.password),
         created_at
     ))
 
     user_id = cursor.lastrowid
 
-    token = secrets.token_urlsafe(32)
+    token = secrets.token_urlsafe(48)
 
     db.execute("""
         INSERT INTO sessions
@@ -329,7 +327,7 @@ def register(data: RegisterData):
 @app.post("/auth/login")
 def login(data: LoginData):
 
-    email = data.email.strip().lower()
+    email = normalize_email(data.email)
 
     db = get_db()
 
@@ -338,33 +336,28 @@ def login(data: LoginData):
             id,
             name,
             email,
-            password_hash,
-            password_salt
+            password_hash
         FROM users
         WHERE email = ?
     """, (email,)).fetchone()
 
     if not user:
         db.close()
+
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
         )
 
-    valid = verify_password(
-        data.password,
-        user["password_salt"],
-        user["password_hash"]
-    )
-
-    if not valid:
+    if user["password_hash"] != hash_password(data.password):
         db.close()
+
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password"
         )
 
-    token = secrets.token_urlsafe(32)
+    token = secrets.token_urlsafe(48)
 
     db.execute("""
         INSERT INTO sessions
@@ -394,45 +387,12 @@ def login(data: LoginData):
     }
 
 
-@app.post("/auth/logout")
-def logout(
-    authorization: str = Header(default=None)
-):
-
-    if not authorization:
-        return {
-            "message": "Logged out"
-        }
-
-    token = authorization.replace(
-        "Bearer ",
-        "",
-        1
-    ).strip()
-
-    db = get_db()
-
-    db.execute(
-        "DELETE FROM sessions WHERE token = ?",
-        (token,)
-    )
-
-    db.commit()
-    db.close()
-
-    return {
-        "message": "Logged out successfully"
-    }
-
-
 @app.get("/auth/me")
 def me(
-    authorization: str = Header(default=None)
+    authorization: str | None = Header(default=None)
 ):
 
-    user = get_current_user(
-        authorization
-    )
+    user = get_current_user(authorization)
 
     return {
         "user": {
@@ -443,8 +403,46 @@ def me(
     }
 
 
+@app.post("/auth/logout")
+def logout(
+    authorization: str | None = Header(default=None)
+):
+
+    if not authorization:
+        return {
+            "message": "Logged out"
+        }
+
+    if authorization.startswith("Bearer "):
+
+        token = authorization.replace(
+            "Bearer ",
+            "",
+            1
+        ).strip()
+
+        db = get_db()
+
+        db.execute(
+            "DELETE FROM sessions WHERE token = ?",
+            (token,)
+        )
+
+        db.commit()
+        db.close()
+
+    return {
+        "message": "Logged out successfully"
+    }
+
+
+# -------------------------
+# MODELS
+# -------------------------
+
 @app.get("/models")
 def models():
+
     return {
         "models": [
             {
@@ -456,15 +454,17 @@ def models():
     }
 
 
+# -------------------------
+# USAGE
+# -------------------------
+
 @app.post("/usage")
 def add_usage(
     data: UsageData,
-    authorization: str = Header(default=None)
+    authorization: str | None = Header(default=None)
 ):
 
-    user = get_current_user(
-        authorization
-    )
+    user = get_current_user(authorization)
 
     (
         current_cost,
@@ -528,12 +528,10 @@ def add_usage(
 
 @app.get("/usage/summary")
 def usage_summary(
-    authorization: str = Header(default=None)
+    authorization: str | None = Header(default=None)
 ):
 
-    user = get_current_user(
-        authorization
-    )
+    user = get_current_user(authorization)
 
     db = get_db()
 
@@ -563,12 +561,10 @@ def usage_summary(
 
 @app.get("/usage/history")
 def usage_history(
-    authorization: str = Header(default=None)
+    authorization: str | None = Header(default=None)
 ):
 
-    user = get_current_user(
-        authorization
-    )
+    user = get_current_user(authorization)
 
     db = get_db()
 
@@ -611,12 +607,10 @@ def usage_history(
 @app.delete("/usage/{usage_id}")
 def delete_usage(
     usage_id: int,
-    authorization: str = Header(default=None)
+    authorization: str | None = Header(default=None)
 ):
 
-    user = get_current_user(
-        authorization
-    )
+    user = get_current_user(authorization)
 
     db = get_db()
 
@@ -646,12 +640,10 @@ def delete_usage(
 
 @app.delete("/usage")
 def clear_usage(
-    authorization: str = Header(default=None)
+    authorization: str | None = Header(default=None)
 ):
 
-    user = get_current_user(
-        authorization
-    )
+    user = get_current_user(authorization)
 
     db = get_db()
 
@@ -675,9 +667,9 @@ def security_status():
 
     return {
         "security": "active",
-        "authentication": "enabled",
-        "password_hashing": "PBKDF2-SHA256",
         "database_exists": DB_FILE.exists(),
         "frontend_exists": FRONTEND_FILE.exists(),
+        "authentication": "enabled",
         "version": "4.0.0"
     }
+    
