@@ -1,22 +1,22 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
 from datetime import datetime, timezone
 import sqlite3
+import hashlib
+import secrets
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_FILE = BASE_DIR / "aihubx.db"
 FRONTEND_FILE = BASE_DIR / "frontend" / "index.html"
 
-
 app = FastAPI(
     title="AIHUBX AI Cost Optimizer",
-    version="3.0.0"
+    version="4.0.0"
 )
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,13 +26,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 MODEL_PRICES = {
     "GPT": 0.005,
     "Gemini": 0.002,
     "Claude": 0.004,
     "Llama": 0.001
 }
+
+
+class RegisterData(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=5, max_length=150)
+    password: str = Field(min_length=6, max_length=100)
+
+
+class LoginData(BaseModel):
+    email: str
+    password: str
 
 
 class UsageData(BaseModel):
@@ -48,8 +58,47 @@ def get_db():
     return db
 
 
-def create_table():
+def hash_password(password: str, salt: str = None):
+    if salt is None:
+        salt = secrets.token_hex(16)
+
+    hashed = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt.encode(),
+        120000
+    ).hex()
+
+    return salt, hashed
+
+
+def verify_password(password: str, salt: str, stored_hash: str):
+    _, hashed = hash_password(password, salt)
+    return secrets.compare_digest(hashed, stored_hash)
+
+
+def create_tables():
     db = get_db()
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            password_salt TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    """)
 
     db.execute("""
         CREATE TABLE IF NOT EXISTS usage_history (
@@ -64,13 +113,17 @@ def create_table():
         )
     """)
 
-    # Upgrade old database created before created_at existed.
     columns = [
         row["name"]
         for row in db.execute(
             "PRAGMA table_info(usage_history)"
         ).fetchall()
     ]
+
+    if "user_id" not in columns:
+        db.execute(
+            "ALTER TABLE usage_history ADD COLUMN user_id INTEGER"
+        )
 
     if "created_at" not in columns:
         db.execute(
@@ -89,7 +142,46 @@ def create_table():
     db.close()
 
 
-create_table()
+create_tables()
+
+
+def get_current_user(authorization: str = None):
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Login required"
+        )
+
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authorization"
+        )
+
+    token = authorization.replace("Bearer ", "", 1).strip()
+
+    db = get_db()
+
+    user = db.execute("""
+        SELECT
+            users.id,
+            users.name,
+            users.email
+        FROM sessions
+        JOIN users
+            ON users.id = sessions.user_id
+        WHERE sessions.token = ?
+    """, (token,)).fetchone()
+
+    db.close()
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired. Please login again."
+        )
+
+    return user
 
 
 def calculate_usage(model: str, tokens: int):
@@ -132,7 +224,7 @@ def home():
         return {
             "message": "AIHUBX is running!",
             "status": "success",
-            "version": "3.0.0"
+            "version": "4.0.0"
         }
 
     return FileResponse(FRONTEND_FILE)
@@ -143,7 +235,7 @@ def api_info():
     return {
         "message": "AIHUBX API is running!",
         "status": "success",
-        "version": "3.0.0"
+        "version": "4.0.0"
     }
 
 
@@ -153,7 +245,201 @@ def health():
         "status": "healthy",
         "database_exists": DB_FILE.exists(),
         "frontend_exists": FRONTEND_FILE.exists(),
-        "version": "3.0.0"
+        "version": "4.0.0"
+    }
+
+
+@app.post("/auth/register")
+def register(data: RegisterData):
+
+    email = data.email.strip().lower()
+
+    db = get_db()
+
+    existing = db.execute(
+        "SELECT id FROM users WHERE email = ?",
+        (email,)
+    ).fetchone()
+
+    if existing:
+        db.close()
+        raise HTTPException(
+            status_code=409,
+            detail="Email already registered"
+        )
+
+    salt, password_hash = hash_password(
+        data.password
+    )
+
+    created_at = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    cursor = db.execute("""
+        INSERT INTO users
+        (
+            name,
+            email,
+            password_hash,
+            password_salt,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        data.name.strip(),
+        email,
+        password_hash,
+        salt,
+        created_at
+    ))
+
+    user_id = cursor.lastrowid
+
+    token = secrets.token_urlsafe(32)
+
+    db.execute("""
+        INSERT INTO sessions
+        (
+            token,
+            user_id,
+            created_at
+        )
+        VALUES (?, ?, ?)
+    """, (
+        token,
+        user_id,
+        created_at
+    ))
+
+    db.commit()
+    db.close()
+
+    return {
+        "message": "Account created successfully",
+        "token": token,
+        "user": {
+            "id": user_id,
+            "name": data.name.strip(),
+            "email": email
+        }
+    }
+
+
+@app.post("/auth/login")
+def login(data: LoginData):
+
+    email = data.email.strip().lower()
+
+    db = get_db()
+
+    user = db.execute("""
+        SELECT
+            id,
+            name,
+            email,
+            password_hash,
+            password_salt
+        FROM users
+        WHERE email = ?
+    """, (email,)).fetchone()
+
+    if not user:
+        db.close()
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    valid = verify_password(
+        data.password,
+        user["password_salt"],
+        user["password_hash"]
+    )
+
+    if not valid:
+        db.close()
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+
+    token = secrets.token_urlsafe(32)
+
+    db.execute("""
+        INSERT INTO sessions
+        (
+            token,
+            user_id,
+            created_at
+        )
+        VALUES (?, ?, ?)
+    """, (
+        token,
+        user["id"],
+        datetime.now(timezone.utc).isoformat()
+    ))
+
+    db.commit()
+    db.close()
+
+    return {
+        "message": "Login successful",
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"]
+        }
+    }
+
+
+@app.post("/auth/logout")
+def logout(
+    authorization: str = Header(default=None)
+):
+
+    if not authorization:
+        return {
+            "message": "Logged out"
+        }
+
+    token = authorization.replace(
+        "Bearer ",
+        "",
+        1
+    ).strip()
+
+    db = get_db()
+
+    db.execute(
+        "DELETE FROM sessions WHERE token = ?",
+        (token,)
+    )
+
+    db.commit()
+    db.close()
+
+    return {
+        "message": "Logged out successfully"
+    }
+
+
+@app.get("/auth/me")
+def me(
+    authorization: str = Header(default=None)
+):
+
+    user = get_current_user(
+        authorization
+    )
+
+    return {
+        "user": {
+            "id": user["id"],
+            "name": user["name"],
+            "email": user["email"]
+        }
     }
 
 
@@ -171,7 +457,14 @@ def models():
 
 
 @app.post("/usage")
-def add_usage(data: UsageData):
+def add_usage(
+    data: UsageData,
+    authorization: str = Header(default=None)
+):
+
+    user = get_current_user(
+        authorization
+    )
 
     (
         current_cost,
@@ -189,10 +482,10 @@ def add_usage(data: UsageData):
 
     db = get_db()
 
-    cursor = db.execute(
-        """
+    cursor = db.execute("""
         INSERT INTO usage_history
         (
+            user_id,
             agent_name,
             model,
             api_calls,
@@ -201,18 +494,17 @@ def add_usage(data: UsageData):
             saving,
             created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            data.agent_name,
-            data.model,
-            data.api_calls,
-            data.tokens,
-            current_cost,
-            saving,
-            created_at
-        )
-    )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        user["id"],
+        data.agent_name,
+        data.model,
+        data.api_calls,
+        data.tokens,
+        current_cost,
+        saving,
+        created_at
+    ))
 
     record_id = cursor.lastrowid
 
@@ -235,7 +527,13 @@ def add_usage(data: UsageData):
 
 
 @app.get("/usage/summary")
-def usage_summary():
+def usage_summary(
+    authorization: str = Header(default=None)
+):
+
+    user = get_current_user(
+        authorization
+    )
 
     db = get_db()
 
@@ -247,7 +545,10 @@ def usage_summary():
             COALESCE(SUM(cost), 0) AS total_cost,
             COALESCE(SUM(saving), 0) AS total_saving
         FROM usage_history
-    """).fetchone()
+        WHERE user_id = ?
+    """, (
+        user["id"],
+    )).fetchone()
 
     db.close()
 
@@ -261,7 +562,13 @@ def usage_summary():
 
 
 @app.get("/usage/history")
-def usage_history():
+def usage_history(
+    authorization: str = Header(default=None)
+):
+
+    user = get_current_user(
+        authorization
+    )
 
     db = get_db()
 
@@ -276,8 +583,11 @@ def usage_history():
             saving,
             created_at
         FROM usage_history
+        WHERE user_id = ?
         ORDER BY id DESC
-    """).fetchall()
+    """, (
+        user["id"],
+    )).fetchall()
 
     db.close()
 
@@ -299,14 +609,25 @@ def usage_history():
 
 
 @app.delete("/usage/{usage_id}")
-def delete_usage(usage_id: int):
+def delete_usage(
+    usage_id: int,
+    authorization: str = Header(default=None)
+):
+
+    user = get_current_user(
+        authorization
+    )
 
     db = get_db()
 
-    cursor = db.execute(
-        "DELETE FROM usage_history WHERE id = ?",
-        (usage_id,)
-    )
+    cursor = db.execute("""
+        DELETE FROM usage_history
+        WHERE id = ?
+        AND user_id = ?
+    """, (
+        usage_id,
+        user["id"]
+    ))
 
     db.commit()
     db.close()
@@ -324,16 +645,28 @@ def delete_usage(usage_id: int):
 
 
 @app.delete("/usage")
-def clear_usage():
+def clear_usage(
+    authorization: str = Header(default=None)
+):
+
+    user = get_current_user(
+        authorization
+    )
 
     db = get_db()
 
-    db.execute("DELETE FROM usage_history")
+    db.execute("""
+        DELETE FROM usage_history
+        WHERE user_id = ?
+    """, (
+        user["id"],
+    ))
+
     db.commit()
     db.close()
 
     return {
-        "message": "All usage history cleared"
+        "message": "Your usage history cleared"
     }
 
 
@@ -342,7 +675,9 @@ def security_status():
 
     return {
         "security": "active",
+        "authentication": "enabled",
+        "password_hashing": "PBKDF2-SHA256",
         "database_exists": DB_FILE.exists(),
         "frontend_exists": FRONTEND_FILE.exists(),
-        "version": "3.0.0"
+        "version": "4.0.0"
     }
