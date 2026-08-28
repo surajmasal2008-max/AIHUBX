@@ -1,407 +1,425 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AIHUBX — AI Cost Optimizer</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+*{box-sizing:border-box}
 
-* {
-    box-sizing: border-box;
+body{
+    margin:0;
+    font-family:Arial,sans-serif;
+    background:#f4f7fb;
+    color:#111827;
 }
 
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f4f7fb;
-    color: #111827;
+header{
+    background:linear-gradient(135deg,#111827,#312e81);
+    color:white;
+    padding:25px;
 }
 
-header {
-    background: linear-gradient(
-        135deg,
-        #111827,
-        #312e81
-    );
-    color: white;
-    padding: 30px;
+.header-inner{
+    max-width:1250px;
+    margin:auto;
 }
 
-.header-inner {
-    max-width: 1250px;
-    margin: auto;
+.brand{
+    display:flex;
+    align-items:center;
+    gap:14px;
 }
 
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+.logo{font-size:34px}
+
+header h1{
+    margin:0;
+    font-size:31px;
 }
 
-.logo {
-    font-size: 34px;
+header p{
+    margin:5px 0 0;
+    color:#cbd5e1;
 }
 
-header h1 {
-    margin: 0;
-    font-size: 31px;
+.container{
+    max-width:1250px;
+    margin:auto;
+    padding:30px 20px 60px;
 }
 
-header p {
-    margin: 5px 0 0;
-    color: #cbd5e1;
+.panel,.stat,.chart-box,.models-box{
+    background:white;
+    border:1px solid #e5e7eb;
+    border-radius:16px;
+    padding:25px;
+    margin-top:25px;
+    box-shadow:0 8px 25px rgba(0,0,0,.06);
 }
 
-.container {
-    max-width: 1250px;
-    margin: auto;
-    padding: 30px 20px 60px;
+.auth-box{
+    max-width:450px;
+    margin:40px auto;
 }
 
-.page-title h2 {
-    margin-bottom: 5px;
-    font-size: 30px;
+.form-grid{
+    display:grid;
+    grid-template-columns:1.5fr 1fr 1fr 1fr;
+    gap:15px;
 }
 
-.page-title p {
-    color: #6b7280;
+.auth-form{
+    display:grid;
+    gap:15px;
 }
 
-.panel {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 25px;
-    margin-top: 25px;
-    box-shadow: 0 8px 25px rgba(0,0,0,.06);
+label{
+    display:block;
+    font-weight:bold;
+    margin-bottom:7px;
 }
 
-.form-grid {
-    display: grid;
-    grid-template-columns:
-        1.5fr
-        1fr
-        1fr
-        1fr;
-    gap: 15px;
+input,select{
+    width:100%;
+    padding:13px;
+    border:1px solid #d1d5db;
+    border-radius:9px;
+    font-size:15px;
 }
 
-label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 7px;
+button{
+    padding:13px 20px;
+    border:none;
+    border-radius:9px;
+    background:#111827;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
 }
 
-input,
-select {
-    width: 100%;
-    padding: 13px;
-    border: 1px solid #d1d5db;
-    border-radius: 9px;
-    font-size: 15px;
+button:hover{background:#374151}
+
+button:disabled{
+    opacity:.6;
+    cursor:not-allowed;
 }
 
-button {
-    padding: 13px 20px;
-    border: none;
-    border-radius: 9px;
-    background: #111827;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
+.primary-button{margin-top:20px}
+
+.danger-button{background:#dc2626}
+.danger-button:hover{background:#b91c1c}
+
+.logout-button{
+    margin-left:auto;
+    background:#dc2626;
 }
 
-button:hover {
-    background: #374151;
+.small-button{
+    padding:7px 11px;
+    font-size:12px;
 }
 
-button:disabled {
-    opacity: .6;
-    cursor: not-allowed;
+.status{
+    margin-top:15px;
+    min-height:22px;
+    font-weight:bold;
 }
 
-.primary-button {
-    margin-top: 20px;
+.success{color:#16a34a}
+.error{color:#dc2626}
+
+.auth-switch{
+    margin-top:15px;
+    text-align:center;
 }
 
-.danger-button {
-    background: #dc2626;
+.auth-switch button{
+    background:none;
+    color:#312e81;
+    padding:5px;
 }
 
-.danger-button:hover {
-    background: #b91c1c;
+.stats-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:16px;
+    margin-top:20px;
 }
 
-.small-button {
-    padding: 7px 11px;
-    font-size: 12px;
+.stat{
+    margin-top:0;
 }
 
-.status {
-    margin-top: 15px;
-    min-height: 22px;
-    font-weight: bold;
+.stat-label{
+    color:#6b7280;
+    font-size:14px;
+    font-weight:bold;
 }
 
-.success {
-    color: #16a34a;
+.stat-value{
+    margin-top:12px;
+    font-size:27px;
+    font-weight:800;
 }
 
-.error {
-    color: #dc2626;
+.recommendation{
+    background:linear-gradient(135deg,#111827,#312e81);
+    color:white;
+    border-radius:16px;
+    padding:26px;
+    margin-top:25px;
 }
 
-.stats-grid {
-    display: grid;
-    grid-template-columns:
-        repeat(5, 1fr);
-    gap: 16px;
-    margin-top: 20px;
+.recommendation-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:15px;
 }
 
-.stat {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 15px;
-    padding: 22px;
-    box-shadow: 0 8px 25px rgba(0,0,0,.05);
+.rec-item{
+    background:rgba(255,255,255,.08);
+    padding:18px;
+    border-radius:10px;
 }
 
-.stat-label {
-    color: #6b7280;
-    font-size: 14px;
-    font-weight: bold;
+.rec-item span{
+    display:block;
+    color:#cbd5e1;
+    font-size:13px;
+    margin-bottom:8px;
 }
 
-.stat-value {
-    margin-top: 12px;
-    font-size: 27px;
-    font-weight: 800;
+.rec-item strong{font-size:21px}
+.green{color:#86efac}
+
+.two-column{
+    display:grid;
+    grid-template-columns:1.3fr 1fr;
+    gap:20px;
+    margin-top:25px;
 }
 
-.recommendation {
-    background:
-        linear-gradient(
-            135deg,
-            #111827,
-            #312e81
-        );
-    color: white;
-    border-radius: 16px;
-    padding: 26px;
-    margin-top: 25px;
+.chart-box,.models-box{
+    margin-top:0;
 }
 
-.recommendation-grid {
-    display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
-    gap: 15px;
+.chart-container{height:320px}
+
+.model-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:15px;
+    margin-bottom:10px;
+    border:1px solid #e5e7eb;
+    border-radius:10px;
 }
 
-.rec-item {
-    background: rgba(255,255,255,.08);
-    padding: 18px;
-    border-radius: 10px;
+.recommended{
+    background:#f0fdf4;
+    border-color:#86efac;
 }
 
-.rec-item span {
-    display: block;
-    color: #cbd5e1;
-    font-size: 13px;
-    margin-bottom: 8px;
+.badge{
+    background:#dcfce7;
+    color:#15803d;
+    padding:4px 8px;
+    border-radius:20px;
+    font-size:11px;
+    margin-left:6px;
 }
 
-.rec-item strong {
-    font-size: 21px;
+.history-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
 }
 
-.green {
-    color: #86efac;
+.table-wrap{overflow-x:auto}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+    min-width:850px;
 }
 
-.two-column {
-    display: grid;
-    grid-template-columns:
-        1.3fr
-        1fr;
-    gap: 20px;
-    margin-top: 25px;
+th,td{
+    padding:13px;
+    border-bottom:1px solid #e5e7eb;
+    text-align:left;
 }
 
-.chart-box,
-.models-box {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 25px;
+th{background:#f9fafb}
+
+.saving-cell{
+    color:#16a34a;
+    font-weight:bold;
 }
 
-.chart-container {
-    height: 320px;
+.empty{
+    text-align:center;
+    color:#6b7280;
+    padding:25px;
 }
 
-.model-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    margin-bottom: 10px;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
+.user-bar{
+    display:flex;
+    align-items:center;
+    max-width:1250px;
+    margin:0 auto 20px;
 }
 
-.recommended {
-    background: #f0fdf4;
-    border-color: #86efac;
+.user-info{
+    font-weight:bold;
 }
 
-.badge {
-    background: #dcfce7;
-    color: #15803d;
-    padding: 4px 8px;
-    border-radius: 20px;
-    font-size: 11px;
-    margin-left: 6px;
+footer{
+    text-align:center;
+    color:#6b7280;
+    padding:25px;
 }
 
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
+.hidden{display:none}
+
+@media(max-width:1000px){
+    .form-grid{grid-template-columns:repeat(2,1fr)}
+    .stats-grid{grid-template-columns:repeat(3,1fr)}
+    .two-column{grid-template-columns:1fr}
+    .recommendation-grid{grid-template-columns:repeat(2,1fr)}
 }
 
-.table-wrap {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    min-width: 850px;
-}
-
-th,
-td {
-    padding: 13px;
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-}
-
-th {
-    background: #f9fafb;
-}
-
-.saving-cell {
-    color: #16a34a;
-    font-weight: bold;
-}
-
-.empty {
-    text-align: center;
-    color: #6b7280;
-    padding: 25px;
-}
-
-footer {
-    text-align: center;
-    color: #6b7280;
-    padding: 25px;
-}
-
-@media(max-width:1000px) {
-
-    .form-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+@media(max-width:600px){
+    .form-grid,.stats-grid,.recommendation-grid{
+        grid-template-columns:1fr;
     }
 
-    .stats-grid {
-        grid-template-columns:
-            repeat(3, 1fr);
+    .history-header{
+        align-items:flex-start;
+        flex-direction:column;
     }
 
-    .two-column {
-        grid-template-columns: 1fr;
+    .user-bar{
+        align-items:flex-start;
+        flex-direction:column;
+        gap:10px;
     }
 
-    .recommendation-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
+    .logout-button{
+        margin-left:0;
     }
-
 }
-
-@media(max-width:600px) {
-
-    .form-grid,
-    .stats-grid,
-    .recommendation-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .history-header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-}
-
 </style>
-
 </head>
-
 
 <body>
 
-
 <header>
-
 <div class="header-inner">
 
 <div class="brand">
-
-<div class="logo">
-🚀
-</div>
-
+<div class="logo">🚀</div>
 <div>
-
 <h1>AIHUBX</h1>
-
-<p>
-AI Cost Optimizer
-</p>
-
+<p>AI Cost Optimizer</p>
+</div>
 </div>
 
 </div>
-
-</div>
-
 </header>
 
 
-<main class="container">
+<!-- AUTH SCREEN -->
+
+<main id="authScreen" class="container">
+
+<section class="panel auth-box">
+
+<h2 id="authTitle">Login to AIHUBX</h2>
+
+<p id="authDescription">
+Login to access your AI usage dashboard.
+</p>
+
+<div id="registerFields" class="hidden">
+
+<label>Name</label>
+<input id="registerName" placeholder="Your name">
+
+<br><br>
+
+</div>
+
+<div class="auth-form">
+
+<div>
+<label>Email</label>
+<input id="authEmail" type="email" placeholder="you@example.com">
+</div>
+
+<div>
+<label>Password</label>
+<input id="authPassword" type="password" placeholder="Password">
+</div>
+
+</div>
+
+<button
+    id="authButton"
+    class="primary-button"
+    onclick="submitAuth()"
+>
+Login
+</button>
+
+<div id="authStatus" class="status"></div>
+
+<div class="auth-switch">
+
+<span id="switchText">
+Don't have an account?
+</span>
+
+<button onclick="toggleAuth()" id="switchButton">
+Register
+</button>
+
+</div>
+
+</section>
+
+</main>
+
+
+<!-- DASHBOARD -->
+
+<main id="dashboard" class="container hidden">
+
+<div class="user-bar">
+
+<div class="user-info">
+👋 Welcome, <span id="userName">User</span>
+</div>
+
+<button
+    class="logout-button"
+    onclick="logout()"
+>
+Logout
+</button>
+
+</div>
 
 
 <div class="page-title">
 
-<h2>
-AI Usage Analyzer
-</h2>
+<h2>AI Usage Analyzer</h2>
 
 <p>
 Analyze AI usage, compare model costs and discover potential savings.
@@ -412,63 +430,36 @@ Analyze AI usage, compare model costs and discover potential savings.
 
 <section class="panel">
 
-<h2>
-Analyze AI Usage
-</h2>
-
+<h2>Analyze AI Usage</h2>
 
 <div class="form-grid">
 
-
 <div>
-
-<label>
-Agent Name
-</label>
+<label>Agent Name</label>
 
 <input
     id="agentName"
     value="My AI Agent"
 >
-
-
 </div>
 
 
 <div>
-
-<label>
-AI Model
-</label>
+<label>AI Model</label>
 
 <select id="model">
 
-<option value="GPT">
-GPT
-</option>
-
-<option value="Gemini">
-Gemini
-</option>
-
-<option value="Claude">
-Claude
-</option>
-
-<option value="Llama">
-Llama
-</option>
+<option value="GPT">GPT</option>
+<option value="Gemini">Gemini</option>
+<option value="Claude">Claude</option>
+<option value="Llama">Llama</option>
 
 </select>
-
 </div>
 
 
 <div>
-
-<label>
-API Calls
-</label>
+<label>API Calls</label>
 
 <input
     id="apiCalls"
@@ -476,15 +467,11 @@ API Calls
     min="1"
     value="100"
 >
-
 </div>
 
 
 <div>
-
-<label>
-Tokens
-</label>
+<label>Tokens</label>
 
 <input
     id="tokensInput"
@@ -492,9 +479,7 @@ Tokens
     min="1"
     value="5000"
 >
-
 </div>
-
 
 </div>
 
@@ -507,12 +492,7 @@ Tokens
 Analyze AI Usage
 </button>
 
-
-<div
-    id="status"
-    class="status"
-></div>
-
+<div id="status" class="status"></div>
 
 </section>
 
@@ -524,157 +504,63 @@ Live Dashboard
 
 <section class="stats-grid">
 
+<div class="stat">
+<div class="stat-label">Total Records</div>
+<div class="stat-value" id="totalRecords">0</div>
+</div>
 
 <div class="stat">
-
-<div class="stat-label">
-Total Records
+<div class="stat-label">Total API Calls</div>
+<div class="stat-value" id="dashboardApiCalls">0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="totalRecords"
->
-0
-</div>
-
-</div>
-
 
 <div class="stat">
-
-<div class="stat-label">
-Total API Calls
+<div class="stat-label">Total Tokens</div>
+<div class="stat-value" id="dashboardTokens">0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="dashboardApiCalls"
->
-0
-</div>
-
-</div>
-
 
 <div class="stat">
-
-<div class="stat-label">
-Total Tokens
+<div class="stat-label">Total AI Cost</div>
+<div class="stat-value" id="dashboardCost">₹0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="dashboardTokens"
->
-0
-</div>
-
-</div>
-
 
 <div class="stat">
-
-<div class="stat-label">
-Total AI Cost
+<div class="stat-label">Total Savings</div>
+<div class="stat-value" id="dashboardSavings">₹0</div>
 </div>
-
-<div
-    class="stat-value"
-    id="dashboardCost"
->
-₹0
-</div>
-
-</div>
-
-
-<div class="stat">
-
-<div class="stat-label">
-Total Savings
-</div>
-
-<div
-    class="stat-value"
-    id="dashboardSavings"
->
-₹0
-</div>
-
-</div>
-
 
 </section>
 
 
 <section class="recommendation">
 
-
-<h2>
-🤖 AIHUBX Recommendation
-</h2>
-
+<h2>🤖 AIHUBX Recommendation</h2>
 
 <p>
 AIHUBX analyzes your usage and recommends a potentially cheaper model.
 </p>
 
-
 <div class="recommendation-grid">
 
-
 <div class="rec-item">
-
-<span>
-Recommended Model
-</span>
-
-<strong id="recommendedModel">
-—
-</strong>
-
+<span>Recommended Model</span>
+<strong id="recommendedModel">—</strong>
 </div>
 
-
 <div class="rec-item">
-
-<span>
-Current Cost
-</span>
-
-<strong>
-₹<span id="currentCost">0</span>
-</strong>
-
+<span>Current Cost</span>
+<strong>₹<span id="currentCost">0</span></strong>
 </div>
 
-
 <div class="rec-item">
-
-<span>
-Recommended Cost
-</span>
-
-<strong>
-₹<span id="recommendedCost">0</span>
-</strong>
-
+<span>Recommended Cost</span>
+<strong>₹<span id="recommendedCost">0</span></strong>
 </div>
 
-
 <div class="rec-item">
-
-<span>
-Potential Saving
-</span>
-
-<strong class="green">
-₹<span id="potentialSaving">0</span>
-</strong>
-
+<span>Potential Saving</span>
+<strong class="green">₹<span id="potentialSaving">0</span></strong>
 </div>
-
 
 </div>
 
@@ -683,17 +569,12 @@ Potential Saving
 
 <div class="two-column">
 
-
 <section class="chart-box">
 
-<h2>
-📊 Cost Overview
-</h2>
+<h2>📊 Cost Overview</h2>
 
 <div class="chart-container">
-
 <canvas id="costChart"></canvas>
-
 </div>
 
 </section>
@@ -701,9 +582,7 @@ Potential Saving
 
 <section class="models-box">
 
-<h2>
-🧠 Model Comparison
-</h2>
+<h2>🧠 Model Comparison</h2>
 
 <div id="modelComparison">
 
@@ -715,19 +594,14 @@ Analyze usage to see model comparison.
 
 </section>
 
-
 </div>
 
 
 <section class="panel">
 
-
 <div class="history-header">
 
-<h2>
-📋 Usage History
-</h2>
-
+<h2>📋 Usage History</h2>
 
 <button
     class="danger-button"
@@ -735,7 +609,6 @@ Analyze usage to see model comparison.
 >
 Clear All History
 </button>
-
 
 </div>
 
@@ -747,55 +620,24 @@ Clear All History
 <thead>
 
 <tr>
-
-<th>
-Date
-</th>
-
-<th>
-Agent
-</th>
-
-<th>
-Model
-</th>
-
-<th>
-API Calls
-</th>
-
-<th>
-Tokens
-</th>
-
-<th>
-Cost
-</th>
-
-<th>
-Saving
-</th>
-
-<th>
-Action
-</th>
-
+<th>Date</th>
+<th>Agent</th>
+<th>Model</th>
+<th>API Calls</th>
+<th>Tokens</th>
+<th>Cost</th>
+<th>Saving</th>
+<th>Action</th>
 </tr>
 
 </thead>
 
-
 <tbody id="historyBody">
 
 <tr>
-
-<td
-    colspan="8"
-    class="empty"
->
+<td colspan="8" class="empty">
 No usage history yet.
 </td>
-
 </tr>
 
 </tbody>
@@ -806,81 +648,378 @@ No usage history yet.
 
 </section>
 
-
 </main>
 
 
 <footer>
-
 AIHUBX © 2026 — AI Cost Optimization Platform
-
 </footer>
 
 
 <script>
 
+const API_URL = "https://aihubx.onrender.com";
 
-const API_URL =
-    "https://aihubx.onrender.com";
+let isRegisterMode = false;
 
 
-const chart =
-    new Chart(
-        document.getElementById("costChart"),
-        {
-            type: "bar",
+function getToken(){
 
-            data: {
-                labels: [
-                    "Current Cost",
-                    "Potential Saving"
-                ],
+    return localStorage.getItem("aihubx_token");
 
-                datasets: [
+}
+
+
+function authHeaders(){
+
+    const token = getToken();
+
+    return {
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + token
+    };
+
+}
+
+
+function toggleAuth(){
+
+    isRegisterMode = !isRegisterMode;
+
+    const title =
+        document.getElementById("authTitle");
+
+    const description =
+        document.getElementById("authDescription");
+
+    const button =
+        document.getElementById("authButton");
+
+    const registerFields =
+        document.getElementById("registerFields");
+
+    const switchText =
+        document.getElementById("switchText");
+
+    const switchButton =
+        document.getElementById("switchButton");
+
+    if(isRegisterMode){
+
+        title.innerText = "Create AIHUBX Account";
+
+        description.innerText =
+            "Create an account to start using AIHUBX.";
+
+        button.innerText = "Register";
+
+        registerFields.classList.remove("hidden");
+
+        switchText.innerText =
+            "Already have an account?";
+
+        switchButton.innerText = "Login";
+
+    }else{
+
+        title.innerText = "Login to AIHUBX";
+
+        description.innerText =
+            "Login to access your AI usage dashboard.";
+
+        button.innerText = "Login";
+
+        registerFields.classList.add("hidden");
+
+        switchText.innerText =
+            "Don't have an account?";
+
+        switchButton.innerText = "Register";
+
+    }
+
+    document.getElementById("authStatus").innerText = "";
+
+}
+
+
+async function submitAuth(){
+
+    const email =
+        document.getElementById("authEmail")
+        .value.trim();
+
+    const password =
+        document.getElementById("authPassword")
+        .value;
+
+    const status =
+        document.getElementById("authStatus");
+
+    if(!email || !password){
+
+        status.innerText =
+            "❌ Email आणि password भरा.";
+
+        status.className =
+            "status error";
+
+        return;
+
+    }
+
+
+    try{
+
+        let response;
+
+        if(isRegisterMode){
+
+            const name =
+                document.getElementById("registerName")
+                .value.trim();
+
+            if(!name){
+
+                status.innerText =
+                    "❌ Name भरा.";
+
+                status.className =
+                    "status error";
+
+                return;
+
+            }
+
+
+            response =
+                await fetch(
+                    API_URL + "/auth/register",
                     {
-                        label:
-                            "AIHUBX Cost Analysis",
-
-                        data: [
-                            0,
-                            0
-                        ],
-
-                        borderRadius: 8
+                        method:"POST",
+                        headers:{
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body:JSON.stringify({
+                            name:name,
+                            email:email,
+                            password:password
+                        })
                     }
-                ]
-            },
+                );
 
-            options: {
-                responsive: true,
+        }else{
 
-                maintainAspectRatio: false,
+            response =
+                await fetch(
+                    API_URL + "/auth/login",
+                    {
+                        method:"POST",
+                        headers:{
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body:JSON.stringify({
+                            email:email,
+                            password:password
+                        })
+                    }
+                );
 
-                scales: {
-                    y: {
-                        beginAtZero: true
+        }
+
+
+        const data =
+            await response.json();
+
+
+        if(!response.ok){
+
+            throw new Error(
+                data.detail ||
+                "Authentication failed"
+            );
+
+        }
+
+
+        localStorage.setItem(
+            "aihubx_token",
+            data.token
+        );
+
+
+        status.innerText =
+            "✅ Success! Dashboard loading...";
+
+        status.className =
+            "status success";
+
+
+        showDashboard(data.user);
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        status.innerText =
+            "❌ " + error.message;
+
+        status.className =
+            "status error";
+
+    }
+
+}
+
+
+async function checkLogin(){
+
+    const token = getToken();
+
+    if(!token){
+
+        showAuth();
+
+        return;
+
+    }
+
+
+    try{
+
+        const response =
+            await fetch(
+                API_URL + "/auth/me",
+                {
+                    headers:{
+                        "Authorization":
+                            "Bearer " + token
                     }
                 }
-            }
+            );
+
+
+        if(!response.ok){
+
+            localStorage.removeItem(
+                "aihubx_token"
+            );
+
+            showAuth();
+
+            return;
+
         }
+
+
+        const data =
+            await response.json();
+
+        showDashboard(data.user);
+
+    }
+    catch(error){
+
+        console.error(error);
+
+        showAuth();
+
+    }
+
+}
+
+
+function showAuth(){
+
+    document
+        .getElementById("authScreen")
+        .classList.remove("hidden");
+
+    document
+        .getElementById("dashboard")
+        .classList.add("hidden");
+
+}
+
+
+async function showDashboard(user){
+
+    document
+        .getElementById("authScreen")
+        .classList.add("hidden");
+
+    document
+        .getElementById("dashboard")
+        .classList.remove("hidden");
+
+
+    document.getElementById("userName")
+        .innerText =
+        user.name || "User";
+
+
+    await loadSummary();
+
+    await loadHistory();
+
+}
+
+
+async function logout(){
+
+    const token = getToken();
+
+    try{
+
+        if(token){
+
+            await fetch(
+                API_URL + "/auth/logout",
+                {
+                    method:"POST",
+                    headers:{
+                        "Authorization":
+                            "Bearer " + token
+                    }
+                }
+            );
+
+        }
+
+    }catch(error){
+
+        console.error(error);
+
+    }
+
+
+    localStorage.removeItem(
+        "aihubx_token"
     );
 
+    showAuth();
 
-function money(value) {
+}
+
+
+function money(value){
 
     return Number(
         value || 0
     ).toLocaleString(
         "en-IN",
         {
-            maximumFractionDigits: 4
+            maximumFractionDigits:4
         }
     );
 
 }
 
 
-function number(value) {
+function number(value){
 
     return Number(
         value || 0
@@ -889,38 +1028,35 @@ function number(value) {
 }
 
 
-function formatDate(value) {
+function formatDate(value){
 
-    if (!value) {
+    if(!value){
         return "-";
     }
 
-    const date =
-        new Date(value);
+    const date = new Date(value);
 
-    if (isNaN(date.getTime())) {
+    if(isNaN(date.getTime())){
         return "-";
     }
 
     return date.toLocaleString(
         "en-IN",
         {
-            dateStyle: "medium",
-            timeStyle: "short"
+            dateStyle:"medium",
+            timeStyle:"short"
         }
     );
 
 }
 
 
-async function analyzeUsage() {
-
+async function analyzeUsage(){
 
     const button =
         document.getElementById(
             "analyzeButton"
         );
-
 
     const status =
         document.getElementById(
@@ -957,10 +1093,7 @@ async function analyzeUsage() {
         );
 
 
-    if (
-        apiCalls <= 0 ||
-        tokens <= 0
-    ) {
+    if(apiCalls <= 0 || tokens <= 0){
 
         status.innerText =
             "❌ API Calls आणि Tokens योग्य भरा.";
@@ -978,7 +1111,6 @@ async function analyzeUsage() {
     button.innerText =
         "⏳ Analyzing...";
 
-
     status.innerText =
         "⏳ AI usage analyze होत आहे...";
 
@@ -986,51 +1118,47 @@ async function analyzeUsage() {
         "status";
 
 
-    try {
-
+    try{
 
         const response =
             await fetch(
                 API_URL + "/usage",
                 {
-                    method: "POST",
+                    method:"POST",
+                    headers:authHeaders(),
+                    body:JSON.stringify({
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-
-                        agent_name:
-                            agentName,
-
-                        model:
-                            model,
-
-                        api_calls:
-                            apiCalls,
-
-                        tokens:
-                            tokens
+                        agent_name:agentName,
+                        model:model,
+                        api_calls:apiCalls,
+                        tokens:tokens
 
                     })
                 }
             );
 
 
-        if (!response.ok) {
+        if(response.status === 401){
 
-            throw new Error(
-                "HTTP " +
-                response.status
-            );
+            logout();
+
+            return;
 
         }
 
 
         const data =
             await response.json();
+
+
+        if(!response.ok){
+
+            throw new Error(
+                data.detail ||
+                "Usage analysis failed"
+            );
+
+        }
 
 
         document.getElementById(
@@ -1057,16 +1185,13 @@ async function analyzeUsage() {
             money(data.estimated_saving);
 
 
-        chart.data.datasets[0].data =
-            [
-                Number(
-                    data.total_cost || 0
-                ),
+        chart.data.datasets[0].data = [
 
-                Number(
-                    data.estimated_saving || 0
-                )
-            ];
+            Number(data.total_cost || 0),
+
+            Number(data.estimated_saving || 0)
+
+        ];
 
 
         chart.update();
@@ -1081,28 +1206,24 @@ async function analyzeUsage() {
 
         await loadHistory();
 
-
         await loadSummary();
-
 
         showModelComparison(data);
 
 
     }
-
-    catch (error) {
+    catch(error){
 
         console.error(error);
 
         status.innerText =
-            "❌ Backend connection failed";
+            "❌ " + error.message;
 
         status.className =
             "status error";
 
     }
-
-    finally {
+    finally{
 
         button.disabled = false;
 
@@ -1114,21 +1235,34 @@ async function analyzeUsage() {
 }
 
 
-async function loadSummary() {
+async function loadSummary(){
 
-    try {
+    try{
 
         const response =
             await fetch(
-                API_URL +
-                "/usage/summary"
+                API_URL + "/usage/summary",
+                {
+                    headers:authHeaders()
+                }
             );
 
 
-        if (!response.ok) {
+        if(response.status === 401){
+
+            logout();
+
+            return;
+
+        }
+
+
+        if(!response.ok){
+
             throw new Error(
                 "Summary failed"
             );
+
         }
 
 
@@ -1139,47 +1273,34 @@ async function loadSummary() {
         document.getElementById(
             "totalRecords"
         ).innerText =
-            number(
-                data.total_records
-            );
+            number(data.total_records);
 
 
         document.getElementById(
             "dashboardApiCalls"
         ).innerText =
-            number(
-                data.total_api_calls
-            );
+            number(data.total_api_calls);
 
 
         document.getElementById(
             "dashboardTokens"
         ).innerText =
-            number(
-                data.total_tokens
-            );
+            number(data.total_tokens);
 
 
         document.getElementById(
             "dashboardCost"
         ).innerText =
-            "₹" +
-            money(
-                data.total_cost
-            );
+            "₹" + money(data.total_cost);
 
 
         document.getElementById(
             "dashboardSavings"
         ).innerText =
-            "₹" +
-            money(
-                data.total_saving
-            );
+            "₹" + money(data.total_saving);
 
     }
-
-    catch (error) {
+    catch(error){
 
         console.error(
             "Summary error:",
@@ -1191,21 +1312,34 @@ async function loadSummary() {
 }
 
 
-async function loadHistory() {
+async function loadHistory(){
 
-    try {
+    try{
 
         const response =
             await fetch(
-                API_URL +
-                "/usage/history"
+                API_URL + "/usage/history",
+                {
+                    headers:authHeaders()
+                }
             );
 
 
-        if (!response.ok) {
+        if(response.status === 401){
+
+            logout();
+
+            return;
+
+        }
+
+
+        if(!response.ok){
+
             throw new Error(
                 "History failed"
             );
+
         }
 
 
@@ -1222,17 +1356,14 @@ async function loadHistory() {
         body.innerHTML = "";
 
 
-        if (
+        if(
             !data.history ||
             data.history.length === 0
-        ) {
+        ){
 
             body.innerHTML = `
                 <tr>
-                    <td
-                        colspan="8"
-                        class="empty"
-                    >
+                    <td colspan="8" class="empty">
                         No usage history yet.
                     </td>
                 </tr>
@@ -1244,8 +1375,7 @@ async function loadHistory() {
 
 
         data.history.forEach(
-            function(item) {
-
+            function(item){
 
                 const row =
                     document.createElement(
@@ -1288,24 +1418,18 @@ async function loadHistory() {
                     </td>
 
                     <td>
-                        ₹${money(
-                            item.cost
-                        )}
+                        ₹${money(item.cost)}
                     </td>
 
                     <td class="saving-cell">
-                        ₹${money(
-                            item.saving
-                        )}
+                        ₹${money(item.saving)}
                     </td>
 
                     <td>
 
                         <button
                             class="small-button danger-button"
-                            onclick="deleteUsage(
-                                ${item.id}
-                            )"
+                            onclick="deleteUsage(${item.id})"
                         >
                             Delete
                         </button>
@@ -1321,8 +1445,7 @@ async function loadHistory() {
         );
 
     }
-
-    catch (error) {
+    catch(error){
 
         console.error(
             "History error:",
@@ -1334,7 +1457,7 @@ async function loadHistory() {
 }
 
 
-async function deleteUsage(id) {
+async function deleteUsage(id){
 
     const confirmed =
         confirm(
@@ -1342,28 +1465,38 @@ async function deleteUsage(id) {
         );
 
 
-    if (!confirmed) {
+    if(!confirmed){
         return;
     }
 
 
-    try {
+    try{
 
         const response =
             await fetch(
-                API_URL +
-                "/usage/" +
-                id,
+                API_URL + "/usage/" + id,
                 {
-                    method: "DELETE"
+                    method:"DELETE",
+                    headers:authHeaders()
                 }
             );
 
 
-        if (!response.ok) {
+        if(response.status === 401){
+
+            logout();
+
+            return;
+
+        }
+
+
+        if(!response.ok){
+
             throw new Error(
                 "Delete failed"
             );
+
         }
 
 
@@ -1372,8 +1505,7 @@ async function deleteUsage(id) {
         await loadSummary();
 
     }
-
-    catch (error) {
+    catch(error){
 
         alert(
             "Unable to delete record."
@@ -1386,7 +1518,7 @@ async function deleteUsage(id) {
 }
 
 
-async function clearHistory() {
+async function clearHistory(){
 
     const confirmed =
         confirm(
@@ -1394,27 +1526,38 @@ async function clearHistory() {
         );
 
 
-    if (!confirmed) {
+    if(!confirmed){
         return;
     }
 
 
-    try {
+    try{
 
         const response =
             await fetch(
-                API_URL +
-                "/usage",
+                API_URL + "/usage",
                 {
-                    method: "DELETE"
+                    method:"DELETE",
+                    headers:authHeaders()
                 }
             );
 
 
-        if (!response.ok) {
+        if(response.status === 401){
+
+            logout();
+
+            return;
+
+        }
+
+
+        if(!response.ok){
+
             throw new Error(
                 "Clear failed"
             );
+
         }
 
 
@@ -1423,8 +1566,7 @@ async function clearHistory() {
         await loadSummary();
 
     }
-
-    catch (error) {
+    catch(error){
 
         alert(
             "Unable to clear history."
@@ -1437,7 +1579,7 @@ async function clearHistory() {
 }
 
 
-function showModelComparison(data) {
+function showModelComparison(data){
 
     const container =
         document.getElementById(
@@ -1453,13 +1595,10 @@ function showModelComparison(data) {
 
     const prices = {
 
-        GPT: 0.005,
-
-        Gemini: 0.002,
-
-        Claude: 0.004,
-
-        Llama: 0.001
+        GPT:0.005,
+        Gemini:0.002,
+        Claude:0.004,
+        Llama:0.001
 
     };
 
@@ -1468,12 +1607,10 @@ function showModelComparison(data) {
 
 
     Object.keys(prices).forEach(
-        function(model) {
-
+        function(model){
 
             const cost =
-                tokens *
-                prices[model];
+                tokens * prices[model];
 
 
             const row =
@@ -1527,42 +1664,67 @@ function showModelComparison(data) {
 }
 
 
-function escapeHtml(value) {
+function escapeHtml(value){
 
-    return String(
-        value || ""
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#039;"
-    );
+    return String(value || "")
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
 
 }
 
 
+const chart =
+    new Chart(
+        document.getElementById(
+            "costChart"
+        ),
+        {
+            type:"bar",
+
+            data:{
+                labels:[
+                    "Current Cost",
+                    "Potential Saving"
+                ],
+
+                datasets:[
+                    {
+                        label:
+                            "AIHUBX Cost Analysis",
+
+                        data:[
+                            0,
+                            0
+                        ],
+
+                        borderRadius:8
+                    }
+                ]
+            },
+
+            options:{
+                responsive:true,
+
+                maintainAspectRatio:false,
+
+                scales:{
+                    y:{
+                        beginAtZero:true
+                    }
+                }
+            }
+        }
+    );
+
+
 window.addEventListener(
     "load",
-    async function() {
+    function(){
 
-        await loadSummary();
-
-        await loadHistory();
+        checkLogin();
 
     }
 );
@@ -1570,8 +1732,6 @@ window.addEventListener(
 </script>
 
 </body>
-
 </html>
-
-
+```
 
