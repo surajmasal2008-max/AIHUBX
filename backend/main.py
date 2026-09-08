@@ -8,6 +8,8 @@ import sqlite3
 import hashlib
 import secrets
 
+from backend.pricing import MODEL_PRICING, calculate_saving
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_FILE = BASE_DIR / "aihubx.db"
@@ -23,15 +25,8 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
-
-MODEL_PRICES = {
-    "GPT": 0.005,
-    "Gemini": 0.002,
-    "Claude": 0.004,
-    "Llama": 0.001
-}
 
 
 class RegisterData(BaseModel):
@@ -182,43 +177,27 @@ def get_current_user(authorization: str | None):
 
 
 def calculate_usage(model, tokens):
-
-    if model not in MODEL_PRICES:
+    if model not in MODEL_PRICING:
         raise HTTPException(
             status_code=400,
             detail={
                 "error": "Unknown model",
-                "available_models": list(MODEL_PRICES.keys())
+                "available_models": list(MODEL_PRICING.keys())
             }
         )
 
-    current_cost = tokens * MODEL_PRICES[model]
-
-    recommended_model = min(
-        MODEL_PRICES,
-        key=MODEL_PRICES.get
-    )
-
-    recommended_cost = (
-        tokens * MODEL_PRICES[recommended_model]
-    )
-
-    saving = max(
-        current_cost - recommended_cost,
-        0
-    )
+    result = calculate_saving(model, tokens)
 
     return (
-        current_cost,
-        recommended_model,
-        recommended_cost,
-        saving
+        result["current_cost"],
+        result["recommended_model"],
+        result["recommended_cost"],
+        result["saving"]
     )
 
 
 @app.get("/")
 def home():
-
     if not FRONTEND_FILE.exists():
         return {
             "message": "AIHUBX is running!",
@@ -254,7 +233,6 @@ def health():
 
 @app.post("/auth/register")
 def register(data: RegisterData):
-
     email = normalize_email(data.email)
 
     db = get_db()
@@ -326,7 +304,6 @@ def register(data: RegisterData):
 
 @app.post("/auth/login")
 def login(data: LoginData):
-
     email = normalize_email(data.email)
 
     db = get_db()
@@ -391,7 +368,6 @@ def login(data: LoginData):
 def me(
     authorization: str | None = Header(default=None)
 ):
-
     user = get_current_user(authorization)
 
     return {
@@ -407,14 +383,12 @@ def me(
 def logout(
     authorization: str | None = Header(default=None)
 ):
-
     if not authorization:
         return {
             "message": "Logged out"
         }
 
     if authorization.startswith("Bearer "):
-
         token = authorization.replace(
             "Bearer ",
             "",
@@ -442,14 +416,13 @@ def logout(
 
 @app.get("/models")
 def models():
-
     return {
         "models": [
             {
                 "name": name,
                 "price_per_1000_tokens": price
             }
-            for name, price in MODEL_PRICES.items()
+            for name, price in MODEL_PRICING.items()
         ]
     }
 
@@ -463,7 +436,6 @@ def add_usage(
     data: UsageData,
     authorization: str | None = Header(default=None)
 ):
-
     user = get_current_user(authorization)
 
     (
@@ -530,7 +502,6 @@ def add_usage(
 def usage_summary(
     authorization: str | None = Header(default=None)
 ):
-
     user = get_current_user(authorization)
 
     db = get_db()
@@ -563,7 +534,6 @@ def usage_summary(
 def usage_history(
     authorization: str | None = Header(default=None)
 ):
-
     user = get_current_user(authorization)
 
     db = get_db()
@@ -609,7 +579,6 @@ def delete_usage(
     usage_id: int,
     authorization: str | None = Header(default=None)
 ):
-
     user = get_current_user(authorization)
 
     db = get_db()
@@ -642,7 +611,6 @@ def delete_usage(
 def clear_usage(
     authorization: str | None = Header(default=None)
 ):
-
     user = get_current_user(authorization)
 
     db = get_db()
@@ -664,7 +632,6 @@ def clear_usage(
 
 @app.get("/security/status")
 def security_status():
-
     return {
         "security": "active",
         "database_exists": DB_FILE.exists(),
@@ -672,4 +639,3 @@ def security_status():
         "authentication": "enabled",
         "version": "4.0.0"
     }
-    
