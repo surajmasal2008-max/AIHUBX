@@ -9,6 +9,7 @@ import hashlib
 import secrets
 
 from backend.pricing import MODEL_PRICING, calculate_saving
+from backend.providers import get_provider
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,6 +46,11 @@ class UsageData(BaseModel):
     model: str
     api_calls: int = Field(gt=0)
     tokens: int = Field(gt=0)
+
+
+class AIRequest(BaseModel):
+    model: str
+    prompt: str = Field(min_length=1, max_length=10000)
 
 
 def get_db():
@@ -408,6 +414,35 @@ def logout(
     return {
         "message": "Logged out successfully"
     }
+
+
+# -------------------------
+# AI GENERATION
+# -------------------------
+
+@app.post("/ai/generate")
+async def ai_generate(
+    data: AIRequest,
+    authorization: str | None = Header(default=None)
+):
+    user = get_current_user(authorization)
+
+    try:
+        provider = get_provider(data.model)
+        result = await provider.generate(data.prompt)
+
+        return {
+            "message": "AI generation request processed",
+            "user_id": user["id"],
+            "model": data.model,
+            "result": result
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
 
 
 # -------------------------
