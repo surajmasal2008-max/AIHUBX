@@ -1,5 +1,4 @@
 fastapi
 uvicorn
 openai
-passlib[bcrypt]
 python-jose[cryptography]
