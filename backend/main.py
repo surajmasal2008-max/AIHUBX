@@ -1,19 +1,30 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from pathlib import Path
+
+import os
 import sqlite3
+from pathlib import Path
+from datetime import datetime, timedelta, timezone
+
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field
+from passlib.context import CryptContext
+from jose import jwt, JWTError
+from openai import AsyncOpenAI
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_FILE = BASE_DIR / "aihubx.db"
 
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_MINUTES = 60 * 24
 
-app = FastAPI(
-    title="AIHUBX AI Cost Optimizer",
-    version="1.0.0"
-)
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY environment variable is required")
 
+app = FastAPI(title="AIHUBX AI Cost Optimizer", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,6 +34,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+security = HTTPBearer()
+client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# Prices must be verified against each provider's current pricing.
+# These are configurable estimates, not live provider price feeds.
+MODEL_PRICES_PER_MILLION = {
+    "gpt-4o-mini": {
+        "input": 0.15,
+        "output": 0.60,
+    }
+}
+
 
 def get_db():
     db = sqlite3.connect(DB_FILE)
@@ -30,234 +54,306 @@ def get_db():
     return db
 
 
-def create_table():
-    db = get_db()
+def create_tables():
+    with get_db() as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS usage_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                agent_name TEXT NOT NULL,
+                model TEXT NOT NULL,
+                api_calls INTEGER NOT NULL,
+                tokens INTEGER NOT NULL,
+                cost REAL NOT NULL,
+                saving REAL NOT NULL DEFAULT 0,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+        """)
 
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS usage_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            agent_name TEXT NOT NULL,
-            model TEXT NOT NULL,
-            api_calls INTEGER NOT NULL,
-            tokens INTEGER NOT NULL,
-            cost REAL NOT NULL,
-            saving REAL NOT NULL
-        )
-    """)
 
-    db.commit()
-    db.close()
+create_tables()
 
 
-create_table()
+class AuthData(BaseModel):
+    email: str = Field(min_length=5, max_length=254)
+    password: str = Field(min_length=8, max_length=72)
 
 
-# Demo pricing per 1000 tokens
-MODEL_PRICES = {
-    "GPT": 0.005,
-    "Gemini": 0.002,
-    "Claude": 0.004,
-    "Llama": 0.001
-}
+class GenerateData(BaseModel):
+    prompt: str = Field(min_length=1, max_length=20000)
+    agent_name: str = Field(default="AIHUBX Agent", max_length=100)
 
 
 class UsageData(BaseModel):
-    agent_name: str
+    agent_name: str = Field(min_length=1, max_length=100)
     model: str
-    api_calls: int
-    tokens: int
+    api_calls: int = Field(ge=1, le=1000000)
+    tokens: int = Field(ge=0, le=100000000)
+
+
+def create_token(user_id: int):
+    expires = datetime.now(timezone.utc) + timedelta(
+        minutes=ACCESS_TOKEN_MINUTES
+    )
+    return jwt.encode(
+        {"sub": str(user_id), "exp": expires},
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+        user_id = int(payload["sub"])
+    except (JWTError, ValueError, KeyError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    with get_db() as db:
+        user = db.execute(
+            "SELECT id, email FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    return {"id": user["id"], "email": user["email"]}
+
+
+def get_price(model: str):
+    prices = MODEL_PRICES_PER_MILLION.get(model)
+    if not prices:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Pricing not configured for model: {model}",
+        )
+    return prices
 
 
 @app.get("/")
 def home():
-    return {
-        "message": "AIHUBX is running!",
-        "status": "success"
-    }
+    return {"service": "AIHUBX", "status": "running"}
 
 
 @app.get("/health")
 def health():
-    return {
-        "status": "healthy"
-    }
+    return {"status": "healthy", "database_exists": DB_FILE.exists()}
 
 
-@app.get("/optimize")
-def optimize(model: str, tokens: int):
+@app.post("/auth/register")
+def register(data: AuthData):
+    email = data.email.strip().lower()
 
-    if model not in MODEL_PRICES:
-        return {
-            "error": "Unknown model",
-            "available_models": list(MODEL_PRICES.keys())
-        }
+    with get_db() as db:
+        existing = db.execute(
+            "SELECT id FROM users WHERE email = ?", (email,)
+        ).fetchone()
 
-    current_cost = tokens * MODEL_PRICES[model]
+        if existing:
+            raise HTTPException(status_code=409, detail="Email already registered")
 
-    recommended_model = min(
-        MODEL_PRICES,
-        key=MODEL_PRICES.get
-    )
-
-    recommended_cost = (
-        tokens * MODEL_PRICES[recommended_model]
-    )
-
-    saving = max(
-        current_cost - recommended_cost,
-        0
-    )
-
-    return {
-        "current_model": model,
-        "recommended_model": recommended_model,
-        "tokens": tokens,
-        "current_cost": round(current_cost, 4),
-        "recommended_cost": round(recommended_cost, 4),
-        "potential_saving": round(saving, 4)
-    }
-
-
-@app.post("/usage")
-def add_usage(data: UsageData):
-
-    if data.model not in MODEL_PRICES:
-        return {
-            "error": "Unknown model",
-            "available_models": list(MODEL_PRICES.keys())
-        }
-
-    current_cost = (
-        data.tokens * MODEL_PRICES[data.model]
-    )
-
-    recommended_model = min(
-        MODEL_PRICES,
-        key=MODEL_PRICES.get
-    )
-
-    recommended_cost = (
-        data.tokens *
-        MODEL_PRICES[recommended_model]
-    )
-
-    saving = max(
-        current_cost - recommended_cost,
-        0
-    )
-
-    db = get_db()
-
-    db.execute(
-        """
-        INSERT INTO usage_history
-        (
-            agent_name,
-            model,
-            api_calls,
-            tokens,
-            cost,
-            saving
+        password_hash = pwd_context.hash(data.password)
+        cursor = db.execute(
+            "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+            (email, password_hash, datetime.now(timezone.utc).isoformat()),
         )
-        VALUES (?, ?, ?, ?, ?, ?)
-        """,
-        (
+        user_id = cursor.lastrowid
+
+    return {
+        "message": "Registration successful",
+        "access_token": create_token(user_id),
+        "token_type": "bearer",
+    }
+
+
+@app.post("/auth/login")
+def login(data: AuthData):
+    email = data.email.strip().lower()
+
+    with get_db() as db:
+        user = db.execute(
+            "SELECT id, password_hash FROM users WHERE email = ?",
+            (email,),
+        ).fetchone()
+
+    if not user or not pwd_context.verify(data.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return {
+        "access_token": create_token(user["id"]),
+        "token_type": "bearer",
+    }
+
+
+@app.get("/auth/me")
+def me(user=Depends(current_user)):
+    return user
+
+
+@app.post("/ai/generate")
+async def generate(data: GenerateData, user=Depends(current_user)):
+    if client is None:
+        raise HTTPException(status_code=503, detail="OpenAI API key is not configured")
+
+    model = "gpt-4o-mini"
+
+    try:
+        response = await client.responses.create(
+            model=model,
+            input=data.prompt,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="AI provider request failed. Check provider configuration and limits.",
+        )
+
+    usage = response.usage
+    input_tokens = getattr(usage, "input_tokens", 0) or 0
+    output_tokens = getattr(usage, "output_tokens", 0) or 0
+    total_tokens = getattr(
+        usage, "total_tokens", input_tokens + output_tokens
+    ) or 0
+
+    prices = get_price(model)
+    cost = (
+        input_tokens * prices["input"]
+        + output_tokens * prices["output"]
+    ) / 1_000_000
+
+    with get_db() as db:
+        db.execute("""
+            INSERT INTO usage_history
+            (user_id, agent_name, model, api_calls, tokens, cost,
+             saving, input_tokens, output_tokens, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user["id"],
             data.agent_name,
-            data.model,
-            data.api_calls,
-            data.tokens,
-            current_cost,
-            saving
-        )
-    )
-
-    db.commit()
-    db.close()
+            model,
+            1,
+            total_tokens,
+            cost,
+            0,
+            input_tokens,
+            output_tokens,
+            datetime.now(timezone.utc).isoformat(),
+        ))
 
     return {
-        "message": "Usage data analyzed",
-        "model": data.model,
-        "api_calls": data.api_calls,
-        "tokens": data.tokens,
-        "total_cost": round(current_cost, 4),
-        "recommended_model": recommended_model,
-        "recommended_cost": round(recommended_cost, 4),
-        "estimated_saving": round(saving, 4)
+        "text": response.output_text,
+        "model": model,
+        "usage": {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+        },
+        "actual_usage_cost_usd_estimate": round(cost, 8),
     }
 
 
 @app.get("/usage/summary")
-def usage_summary():
-
-    db = get_db()
-
-    row = db.execute(
-        """
-        SELECT
-            COUNT(*) AS total_records,
-            COALESCE(SUM(api_calls), 0) AS total_api_calls,
-            COALESCE(SUM(tokens), 0) AS total_tokens,
-            COALESCE(SUM(cost), 0) AS total_cost,
-            COALESCE(SUM(saving), 0) AS total_saving
-        FROM usage_history
-        """
-    ).fetchone()
-
-    db.close()
+def usage_summary(user=Depends(current_user)):
+    with get_db() as db:
+        row = db.execute("""
+            SELECT COUNT(*) AS total_records,
+                   COALESCE(SUM(api_calls), 0) AS total_api_calls,
+                   COALESCE(SUM(tokens), 0) AS total_tokens,
+                   COALESCE(SUM(cost), 0) AS total_cost,
+                   COALESCE(SUM(saving), 0) AS total_saving
+            FROM usage_history WHERE user_id = ?
+        """, (user["id"],)).fetchone()
 
     return {
         "total_records": row["total_records"],
         "total_api_calls": row["total_api_calls"],
         "total_tokens": row["total_tokens"],
-        "total_cost": round(row["total_cost"], 4),
-        "total_saving": round(row["total_saving"], 4)
+        "total_cost_usd_estimate": round(row["total_cost"], 8),
+        "total_saving": round(row["total_saving"], 8),
     }
 
 
 @app.get("/usage/history")
-def usage_history():
+def usage_history(user=Depends(current_user)):
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT id, agent_name, model, api_calls, tokens, cost,
+                   saving, input_tokens, output_tokens, created_at
+            FROM usage_history
+            WHERE user_id = ?
+            ORDER BY id DESC LIMIT 500
+        """, (user["id"],)).fetchall()
 
-    db = get_db()
+    return {"history": [dict(row) for row in rows]}
 
-    rows = db.execute(
-        """
-        SELECT
-            id,
-            agent_name,
-            model,
-            api_calls,
-            tokens,
-            cost,
-            saving
-        FROM usage_history
-        ORDER BY id DESC
-        """
-    ).fetchall()
 
-    db.close()
+@app.post("/usage")
+def add_usage(data: UsageData, user=Depends(current_user)):
+    # Manual usage records are user-entered, not verified provider usage.
+    prices = get_price(data.model)
+    cost = data.tokens * prices["input"] / 1_000_000
 
-    history = []
-
-    for row in rows:
-        history.append({
-            "id": row["id"],
-            "agent_name": row["agent_name"],
-            "model": row["model"],
-            "api_calls": row["api_calls"],
-            "tokens": row["tokens"],
-            "cost": round(row["cost"], 4),
-            "saving": round(row["saving"], 4)
-        })
+    with get_db() as db:
+        db.execute("""
+            INSERT INTO usage_history
+            (user_id, agent_name, model, api_calls, tokens, cost,
+             saving, input_tokens, output_tokens, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user["id"], data.agent_name, data.model, data.api_calls,
+            data.tokens, cost, 0, data.tokens, 0,
+            datetime.now(timezone.utc).isoformat(),
+        ))
 
     return {
-        "history": history
+        "message": "Manual usage record saved",
+        "cost_usd_estimate": round(cost, 8),
+    }
+
+
+@app.get("/usage/history/all")
+def all_usage(user=Depends(current_user)):
+    return usage_history(user)
+
+
+@app.get("/optimize")
+def optimize(model: str, tokens: int, user=Depends(current_user)):
+    if tokens < 0:
+        raise HTTPException(status_code=400, detail="Tokens cannot be negative")
+
+    prices = get_price(model)
+    current_cost = tokens * prices["input"] / 1_000_000
+
+    return {
+        "current_model": model,
+        "tokens": tokens,
+        "current_cost_usd_estimate": round(current_cost, 8),
+        "note": "Estimate uses input-token pricing only; it is not a provider comparison.",
     }
 
 
 @app.get("/security/status")
 def security_status():
-
     return {
-        "security": "active",
-        "database_exists": DB_FILE.exists()
+        "security": "JWT authentication enabled",
+        "database_exists": DB_FILE.exists(),
+        "openai_configured": client is not None,
     }
