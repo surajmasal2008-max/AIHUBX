@@ -1,6 +1,8 @@
-
 import os
 import sqlite3
+import hashlib
+import hmac
+import secrets
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -8,7 +10,6 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
-from passlib.context import CryptContext
 from jose import jwt, JWTError
 from openai import AsyncOpenAI
 
@@ -24,7 +25,7 @@ ACCESS_TOKEN_MINUTES = 60 * 24
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY environment variable is required")
 
-app = FastAPI(title="AIHUBX AI Cost Optimizer", version="2.0.0")
+app = FastAPI(title="AIHUBX AI Cost Optimizer", version="2.0.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,12 +35,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    iterations = 310_000
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt, iterations
+    )
+    return f"pbkdf2_sha256${iterations}${salt.hex()}${digest.hex()}"
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    try:
+        scheme, iterations_text, salt_hex, expected_hex = stored_hash.split("$")
+        if scheme != "pbkdf2_sha256":
+            return False
+
+        iterations = int(iterations_text)
+        if iterations < 1 or iterations > 2_000_000:
+            return False
+
+        salt = bytes.fromhex(salt_hex)
+        expected = bytes.fromhex(expected_hex)
+        actual = hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), salt, iterations
+        )
+        return hmac.compare_digest(actual, expected)
+    except (ValueError, TypeError):
+        return False
+
+
 security = HTTPBearer()
 client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
-# Prices must be verified against each provider's current pricing.
-# These are configurable estimates, not live provider price feeds.
 MODEL_PRICES_PER_MILLION = {
     "gpt-4o-mini": {
         "input": 0.15,
@@ -64,6 +92,7 @@ def create_tables():
                 created_at TEXT NOT NULL
             )
         """)
+
         db.execute("""
             CREATE TABLE IF NOT EXISTS usage_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,13 +110,32 @@ def create_tables():
             )
         """)
 
+        # Add newer columns if an older database already exists.
+        columns = {
+            row["name"]
+            for row in db.execute("PRAGMA table_info(usage_history)").fetchall()
+        }
+
+        migrations = {
+            "input_tokens": "INTEGER NOT NULL DEFAULT 0",
+            "output_tokens": "INTEGER NOT NULL DEFAULT 0",
+            "created_at": "TEXT NOT NULL DEFAULT ''",
+            "saving": "REAL NOT NULL DEFAULT 0",
+        }
+
+        for column, definition in migrations.items():
+            if column not in columns:
+                db.execute(
+                    f"ALTER TABLE usage_history ADD COLUMN {column} {definition}"
+                )
+
 
 create_tables()
 
 
 class AuthData(BaseModel):
     email: str = Field(min_length=5, max_length=254)
-    password: str = Field(min_length=8, max_length=72)
+    password: str = Field(min_length=8, max_length=1024)
 
 
 class GenerateData(BaseModel):
@@ -155,12 +203,18 @@ def home():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "database_exists": DB_FILE.exists()}
+    return {
+        "status": "healthy",
+        "database_exists": DB_FILE.exists(),
+    }
 
 
 @app.post("/auth/register")
 def register(data: AuthData):
     email = data.email.strip().lower()
+
+    if len(data.password.encode("utf-8")) > 4096:
+        raise HTTPException(status_code=400, detail="Password is too long")
 
     with get_db() as db:
         existing = db.execute(
@@ -168,11 +222,18 @@ def register(data: AuthData):
         ).fetchone()
 
         if existing:
-            raise HTTPException(status_code=409, detail="Email already registered")
+            raise HTTPException(
+                status_code=409,
+                detail="Email already registered",
+            )
 
-        password_hash = pwd_context.hash(data.password)
+        password_hash = hash_password(data.password)
+
         cursor = db.execute(
-            "INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)",
+            """
+            INSERT INTO users (email, password_hash, created_at)
+            VALUES (?, ?, ?)
+            """,
             (email, password_hash, datetime.now(timezone.utc).isoformat()),
         )
         user_id = cursor.lastrowid
@@ -194,8 +255,11 @@ def login(data: AuthData):
             (email,),
         ).fetchone()
 
-    if not user or not pwd_context.verify(data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user or not verify_password(data.password, user["password_hash"]):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+        )
 
     return {
         "access_token": create_token(user["id"]),
@@ -211,7 +275,10 @@ def me(user=Depends(current_user)):
 @app.post("/ai/generate")
 async def generate(data: GenerateData, user=Depends(current_user)):
     if client is None:
-        raise HTTPException(status_code=503, detail="OpenAI API key is not configured")
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI API key is not configured",
+        )
 
     model = "gpt-4o-mini"
 
@@ -240,23 +307,26 @@ async def generate(data: GenerateData, user=Depends(current_user)):
     ) / 1_000_000
 
     with get_db() as db:
-        db.execute("""
+        db.execute(
+            """
             INSERT INTO usage_history
             (user_id, agent_name, model, api_calls, tokens, cost,
              saving, input_tokens, output_tokens, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user["id"],
-            data.agent_name,
-            model,
-            1,
-            total_tokens,
-            cost,
-            0,
-            input_tokens,
-            output_tokens,
-            datetime.now(timezone.utc).isoformat(),
-        ))
+            """,
+            (
+                user["id"],
+                data.agent_name,
+                model,
+                1,
+                total_tokens,
+                cost,
+                0,
+                input_tokens,
+                output_tokens,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
 
     return {
         "text": response.output_text,
@@ -273,14 +343,18 @@ async def generate(data: GenerateData, user=Depends(current_user)):
 @app.get("/usage/summary")
 def usage_summary(user=Depends(current_user)):
     with get_db() as db:
-        row = db.execute("""
+        row = db.execute(
+            """
             SELECT COUNT(*) AS total_records,
                    COALESCE(SUM(api_calls), 0) AS total_api_calls,
                    COALESCE(SUM(tokens), 0) AS total_tokens,
                    COALESCE(SUM(cost), 0) AS total_cost,
                    COALESCE(SUM(saving), 0) AS total_saving
-            FROM usage_history WHERE user_id = ?
-        """, (user["id"],)).fetchone()
+            FROM usage_history
+            WHERE user_id = ?
+            """,
+            (user["id"],),
+        ).fetchone()
 
     return {
         "total_records": row["total_records"],
@@ -294,34 +368,47 @@ def usage_summary(user=Depends(current_user)):
 @app.get("/usage/history")
 def usage_history(user=Depends(current_user)):
     with get_db() as db:
-        rows = db.execute("""
+        rows = db.execute(
+            """
             SELECT id, agent_name, model, api_calls, tokens, cost,
                    saving, input_tokens, output_tokens, created_at
             FROM usage_history
             WHERE user_id = ?
             ORDER BY id DESC LIMIT 500
-        """, (user["id"],)).fetchall()
+            """,
+            (user["id"],),
+        ).fetchall()
 
     return {"history": [dict(row) for row in rows]}
 
 
 @app.post("/usage")
 def add_usage(data: UsageData, user=Depends(current_user)):
-    # Manual usage records are user-entered, not verified provider usage.
+    # This is manually entered usage, not verified provider usage.
     prices = get_price(data.model)
     cost = data.tokens * prices["input"] / 1_000_000
 
     with get_db() as db:
-        db.execute("""
+        db.execute(
+            """
             INSERT INTO usage_history
             (user_id, agent_name, model, api_calls, tokens, cost,
              saving, input_tokens, output_tokens, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            user["id"], data.agent_name, data.model, data.api_calls,
-            data.tokens, cost, 0, data.tokens, 0,
-            datetime.now(timezone.utc).isoformat(),
-        ))
+            """,
+            (
+                user["id"],
+                data.agent_name,
+                data.model,
+                data.api_calls,
+                data.tokens,
+                cost,
+                0,
+                data.tokens,
+                0,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
 
     return {
         "message": "Manual usage record saved",
@@ -337,7 +424,10 @@ def all_usage(user=Depends(current_user)):
 @app.get("/optimize")
 def optimize(model: str, tokens: int, user=Depends(current_user)):
     if tokens < 0:
-        raise HTTPException(status_code=400, detail="Tokens cannot be negative")
+        raise HTTPException(
+            status_code=400,
+            detail="Tokens cannot be negative",
+        )
 
     prices = get_price(model)
     current_cost = tokens * prices["input"] / 1_000_000
