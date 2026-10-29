@@ -1,4 +1,5 @@
 import os
+import logging
 import sqlite3
 import hashlib
 import hmac
@@ -288,9 +289,10 @@ async def generate(data: GenerateData, user=Depends(current_user)):
             input=data.prompt,
         )
     except Exception:
+        logging.exception("AIHUBX OpenAI request failed")
         raise HTTPException(
             status_code=502,
-            detail="AI provider request failed. Check provider configuration and limits.",
+            detail="AI provider request failed. Check Render logs.",
         )
 
     usage = response.usage
